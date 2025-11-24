@@ -1,0 +1,95 @@
+.chess-viewer-container {
+	max-width: 600px;
+	margin: 20px auto;
+	padding: 20px;
+	background: #f8f9fa;
+	border-radius: 8px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.chess-board {
+	margin: 0 auto;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.chess-controls {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.chess-btn {
+	padding: 8px 16px;
+	background: #4a90e2;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 14px;
+	font-weight: 500;
+	transition: all 0.2s ease;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chess-btn:hover {
+	background: #357abd;
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.chess-btn:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chess-info {
+	text-align: center;
+	padding: 12px;
+	background: white;
+	border-radius: 4px;
+	border: 1px solid #e0e0e0;
+	min-height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.chess-info strong {
+	color: #333;
+}
+
+/* 响应式设计 */
+@media (max-width: 600px) {
+	.chess-viewer-container {
+		padding: 10px;
+	}
+	
+	.chess-board {
+		width: 100% !important;
+		max-width: 400px;
+	}
+	
+	.chess-btn {
+		padding: 6px 12px;
+		font-size: 12px;
+	}
+}
+
+/* 暗色主题支持 */
+@media (prefers-color-scheme: dark) {
+	.chess-viewer-container {
+		background: #2d2d2d;
+	}
+	
+	.chess-info {
+		background: #3d3d3d;
+		border-color: #4d4d4d;
+	}
+	
+	.chess-info strong {
+		color: #e0e0e0;
+	}
+}
