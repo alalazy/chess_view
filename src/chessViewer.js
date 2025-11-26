@@ -45,7 +45,7 @@ function initializeChessBoards() {
 		
 		try {
 			// 使用Chess.js解析PGN（使用全局变量）
-			const chess = new Chess();
+			const chess = new window.ChessJS.Chess();
 			chess.loadPgn(pgnContent);
 			
 			// 获取所有移动
@@ -62,7 +62,7 @@ function initializeChessBoards() {
 			window.chessCurrentMove[boardId] = -1;
 			
 			// 创建棋盘（使用全局变量）
-			const board = Chessboard(boardId, {
+			const board = window.Chessboard(boardId, {
 				position: 'start',
 				draggable: false,
 				showNotation: true,

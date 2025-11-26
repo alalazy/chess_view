@@ -44,12 +44,12 @@ module.exports = {
 			assets: function() {
 				return [
 					{ name: 'jquery/jquery.min.js' },
-					{ name: 'chessboard.css' },
-					{ name: 'chessViewer.css' },
-					{ name: 'chessViewer.js' },
 					{ name: 'chessjs/chess.js' },
 					{ name: 'chessboard/chessboard-1.0.0.min.css' },
 					{ name: 'chessboard/chessboard-1.0.0.min.js' },
+					{ name: 'chessboard.css' },
+					{ name: 'chessViewer.css' },
+					{ name: 'chessViewer.js' },
 				];
 			},
 		}

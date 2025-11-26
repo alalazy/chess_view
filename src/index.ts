@@ -29,7 +29,7 @@ joplin.plugins.register({
 \`\`\`\n`;
 
 				await joplin.commands.execute('insertText', pgnTemplate);
-			},
+			}
 		});
 
 		// 添加工具栏按钮

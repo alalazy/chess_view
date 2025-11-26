@@ -3366,19 +3366,20 @@ class Chess {
     }
 }
 
-exports.BISHOP = BISHOP;
-exports.BLACK = BLACK;
-exports.Chess = Chess;
-exports.DEFAULT_POSITION = DEFAULT_POSITION;
-exports.KING = KING;
-exports.KNIGHT = KNIGHT;
-exports.Move = Move;
-exports.PAWN = PAWN;
-exports.QUEEN = QUEEN;
-exports.ROOK = ROOK;
-exports.SEVEN_TAG_ROSTER = SEVEN_TAG_ROSTER;
-exports.SQUARES = SQUARES;
-exports.WHITE = WHITE;
-exports.validateFen = validateFen;
-exports.xoroshiro128 = xoroshiro128;
-//# sourceMappingURL=chess.js.map
+window.ChessJS = {
+  BISHOP: BISHOP,
+  BLACK: BLACK,
+  Chess: Chess,
+  DEFAULT_POSITION: DEFAULT_POSITION,
+  KING: KING,
+  KNIGHT: KNIGHT,
+  Move: Move,
+  PAWN: PAWN,
+  QUEEN: QUEEN,
+  ROOK: ROOK,
+  SEVEN_TAG_ROSTER: SEVEN_TAG_ROSTER,
+  SQUARES: SQUARES,
+  WHITE: WHITE,
+  validateFen: validateFen,
+  xoroshiro128: xoroshiro128
+}; 
