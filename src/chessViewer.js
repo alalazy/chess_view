@@ -73,8 +73,8 @@ function initializeChessBoards() {
 
 			window.chessBoards[boardId] = board;
 			
-			// 显示初始信息
-			updateMoveInfo(boardId);
+			// 生成步骤列表
+			generateMovesList(boardId);
 			
 		} catch (error) {
 			console.error('Failed to parse PGN:', error);
@@ -86,33 +86,99 @@ function initializeChessBoards() {
 	});
 }
 
-// 更新移动信息显示
-function updateMoveInfo(boardId) {
-	const infoDiv = document.getElementById(boardId + '-move-info');
-	if (!infoDiv) return;
+// 生成步骤列表
+function generateMovesList(boardId) {
+	const movesListDiv = document.getElementById(boardId + '-moves-list');
+	if (!movesListDiv) return;
+	
+	const moves = window.chessMoves[boardId];
+	if (!moves || moves.length === 0) {
+		movesListDiv.innerHTML = '<div style="color: #999; padding: 10px; text-align: center;">No moves yet</div>';
+		return;
+	}
+	
+	let html = '';
+	
+	// 按回合组织移动
+	for (let i = 0; i < moves.length; i += 2) {
+		const moveNum = Math.floor(i / 2) + 1;
+		const whiteMove = moves[i];
+		const blackMove = moves[i + 1];
+		
+		html += '<div style="display: flex; align-items: center; padding: 4px 6px; border-radius: 3px; margin-bottom: 1px;">';
+		html += '<div style="width: 32px; font-size: 12px; font-weight: 600; color: #888; flex-shrink: 0;">' + moveNum + '</div>';
+		
+		// 白方移动
+		html += '<div class="move-item" data-move-index="' + i + '" style="flex: 1; padding: 6px 8px; cursor: pointer; border-radius: 3px; margin-right: 4px; text-align: center;" onclick="chessViewerGoToMove(\'' + boardId + '\', ' + i + ')">' + whiteMove.san + '</div>';
+		
+		// 黑方移动（如果存在）
+		if (blackMove) {
+			html += '<div class="move-item" data-move-index="' + (i + 1) + '" style="flex: 1; padding: 6px 8px; cursor: pointer; border-radius: 3px; text-align: center;" onclick="chessViewerGoToMove(\'' + boardId + '\', ' + (i + 1) + ')">' + blackMove.san + '</div>';
+		} else {
+			html += '<div style="flex: 1;"></div>';
+		}
+		
+		html += '</div>';
+	}
+	
+	movesListDiv.innerHTML = html;
+	
+	// 高亮当前步骤
+	highlightCurrentMove(boardId);
+}
+
+// 高亮当前步骤
+function highlightCurrentMove(boardId) {
+	const movesListDiv = document.getElementById(boardId + '-moves-list');
+	if (!movesListDiv) return;
 	
 	const currentMove = window.chessCurrentMove[boardId];
-	const moves = window.chessMoves[boardId];
-	const chess = window.chessGames[boardId];
 	
-	if (currentMove === -1) {
-		infoDiv.innerHTML = '<strong>初始位置</strong>';
-	} else if (currentMove < moves.length) {
-		const move = moves[currentMove];
-		const moveNum = Math.floor(currentMove / 2) + 1;
-		const side = currentMove % 2 === 0 ? '白方' : '黑方';
-		infoDiv.innerHTML = `<strong>第 ${moveNum} 步 (${side}): ${move.san}</strong>`;
-	}
+	// 移除所有高亮
+	const allMoves = movesListDiv.querySelectorAll('.move-item');
+	allMoves.forEach(item => {
+		item.style.background = '';
+		item.style.color = '';
+		item.style.fontWeight = '';
+	});
 	
-	// 显示当前局面状态
-	if (chess.isCheckmate()) {
-		infoDiv.innerHTML += ' <span style="color: red; font-weight: bold;">将死!</span>';
-	} else if (chess.isCheck()) {
-		infoDiv.innerHTML += ' <span style="color: orange; font-weight: bold;">将军!</span>';
-	} else if (chess.isDraw()) {
-		infoDiv.innerHTML += ' <span style="color: blue; font-weight: bold;">和棋!</span>';
+	// 高亮当前步骤
+	const currentItem = movesListDiv.querySelector('[data-move-index="' + currentMove + '"]');
+	if (currentItem) {
+		currentItem.style.background = '#3893E8';
+		currentItem.style.color = '#ffffff';
+		currentItem.style.fontWeight = '600';
+		
+		// 滚动到可见区域
+		currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 	}
 }
+
+// 跳转到指定步骤
+window.chessViewerGoToMove = function(boardId, moveIndex) {
+	const board = window.chessBoards[boardId];
+	const chess = window.chessGames[boardId];
+	const moves = window.chessMoves[boardId];
+	
+	if (!board || !chess || !moves) return;
+	
+	// 重置到初始位置
+	chess.reset();
+	
+	// 应用到指定步骤
+	for (let i = 0; i <= moveIndex; i++) {
+		if (i < moves.length) {
+			chess.move(moves[i].san);
+		}
+	}
+	
+	// 更新棋盘
+	board.position(chess.fen());
+	window.chessCurrentMove[boardId] = moveIndex;
+	
+	// 更新信息和高亮
+	highlightCurrentMove(boardId);
+};
 
 // 跳到开始
 window.chessViewerStart = function(boardId) {
@@ -124,7 +190,7 @@ window.chessViewerStart = function(boardId) {
 	chess.reset();
 	board.position(chess.fen());
 	window.chessCurrentMove[boardId] = -1;
-	updateMoveInfo(boardId);
+	highlightCurrentMove(boardId);
 };
 
 // 上一步
@@ -138,7 +204,7 @@ window.chessViewerPrev = function(boardId) {
 	chess.undo();
 	board.position(chess.fen());
 	window.chessCurrentMove[boardId]--;
-	updateMoveInfo(boardId);
+	highlightCurrentMove(boardId);
 };
 
 // 下一步
@@ -154,7 +220,7 @@ window.chessViewerNext = function(boardId) {
 	chess.move(nextMove.san);
 	board.position(chess.fen());
 	window.chessCurrentMove[boardId]++;
-	updateMoveInfo(boardId);
+	highlightCurrentMove(boardId);
 };
 
 // 跳到结束
@@ -173,7 +239,7 @@ window.chessViewerEnd = function(boardId) {
 	
 	board.position(chess.fen());
 	window.chessCurrentMove[boardId] = moves.length - 1;
-	updateMoveInfo(boardId);
+	highlightCurrentMove(boardId);
 };
 
 // 翻转棋盘

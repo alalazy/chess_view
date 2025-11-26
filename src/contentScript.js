@@ -16,22 +16,25 @@ module.exports = {
 						const pgnContent = token.content;
 						const uniqueId = 'chess-board-' + Math.random().toString(36).substr(2, 9);
 						
-						return `
-							<div class="chess-viewer-container" style="margin: 20px 0;">
-								<div id="${uniqueId}" class="chess-board" style="width: 400px;"></div>
-								<div class="chess-controls" style="margin-top: 10px;">
-									<button class="chess-btn" onclick="chessViewerStart('${uniqueId}')">⏮ 开始</button>
-									<button class="chess-btn" onclick="chessViewerPrev('${uniqueId}')">◀ 上一步</button>
-									<button class="chess-btn" onclick="chessViewerNext('${uniqueId}')">下一步 ▶</button>
-									<button class="chess-btn" onclick="chessViewerEnd('${uniqueId}')">结束 ⏭</button>
-									<button class="chess-btn" onclick="chessViewerFlip('${uniqueId}')">🔄 翻转</button>
+					return `
+						<div class="chess-viewer-container">
+							<div class="chess-board-section">
+								<div id="${uniqueId}" class="chess-board"></div>
+								<div class="chess-controls">
+									<button class="chess-btn" onclick="chessViewerStart('${uniqueId}')">⏮</button>
+									<button class="chess-btn" onclick="chessViewerPrev('${uniqueId}')">◀</button>
+									<button class="chess-btn" onclick="chessViewerNext('${uniqueId}')">▶</button>
+									<button class="chess-btn" onclick="chessViewerEnd('${uniqueId}')">⏭</button>
+									<button class="chess-btn" onclick="chessViewerFlip('${uniqueId}')">⇅</button>
 								</div>
-								<div class="chess-info" style="margin-top: 10px; font-family: monospace; font-size: 14px;">
-									<div id="${uniqueId}-move-info"></div>
-								</div>
-								<script type="application/pgn" id="${uniqueId}-pgn">${pgnContent}</script>
 							</div>
-						`;
+							<div class="chess-moves-section">
+								<div>Moves</div>
+								<div id="${uniqueId}-moves-list" class="chess-moves-list"></div>
+							</div>
+							<script type="application/pgn" id="${uniqueId}-pgn">${pgnContent}</script>
+						</div>
+					`;
 					}
 
 					// 其他代码块使用默认渲染
