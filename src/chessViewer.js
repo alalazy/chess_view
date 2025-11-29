@@ -62,7 +62,7 @@ function initializeChessBoards() {
 			window.chessCurrentMove[boardId] = -1;
 			
 			// 创建棋盘（使用全局变量）
-			const board = window.Chessboard(boardId, {
+			const board = Chessboard(boardId, {
 				position: 'start',
 				draggable: false,
 				showNotation: true,
