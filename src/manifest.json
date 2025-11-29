@@ -10,7 +10,7 @@
 	"repository_url": "https://github.com/alalazy/chess_view",
 	"platforms": ["desktop", "mobile"],
 	"keywords": ["chess", "chess viewer"],
-	"categories": ["Integrations"],
+	"categories": [],
 	"screenshots": [
 		{"src": "resources/screenshots/screenshot1.png", "label": "chessview"},
 		{"src": "resources/screenshots/screenshot2.png", "label": "chessedit"}
