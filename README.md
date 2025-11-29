@@ -1,6 +1,6 @@
-# Chess Viewer - Joplin插件
+# Chess Viewer
 
-一个用于在Joplin笔记中查看和回放国际象棋棋局的插件。支持PGN格式。
+用于在Joplin笔记中查看和回放国际象棋棋局的插件。支持PGN格式。
 
 ## 使用方法
 
@@ -41,7 +41,3 @@ npm run dist
 ## 许可证
 
 MIT
-
----
-
-For information on how to build or publish the plugin, please see [GENERATOR_DOC.md](./GENERATOR_DOC.md)
