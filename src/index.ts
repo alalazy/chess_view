@@ -29,7 +29,8 @@ joplin.plugins.register({
 \`\`\`\n`;
 
 				await joplin.commands.execute('insertText', pgnTemplate);
-			}
+			},
+			enabledCondition: 'markdownEditorPaneVisible',
 		});
 
 		// 添加工具栏按钮

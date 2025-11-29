@@ -11,7 +11,15 @@
 	"platforms": ["desktop", "mobile"],
 	"keywords": [],
 	"categories": [],
-	"screenshots": [],
-	"icons": {},
+	"screenshots": [
+		{"src": "resources/screenshots/screenshot1.png", "label": "chessview"},
+		{"src": "resources/screenshots/screenshot2.png", "label": "chessedit"}
+	],
+	"icons": {
+		"16": "resources/icons/logo16.png",
+		"32": "resources/icons/logo32.png",
+		"48": "resources/icons/logo48.png",
+		"128": "resources/icons/logo128.png"
+	},
 	"promo_tile": {}
 }
