@@ -2,7 +2,7 @@
 
 This plugin for viewing and replaying chess games in Joplin Notes. Supports PGN format.
 
-![Logo](https://imgur.com/UdZmJVO "")
+![Logo](./resources/icons/logo128.png "")
 
 ## Usage
 
@@ -20,7 +20,7 @@ In markdown editor, clicking the "Insert PGN" button on the toolbar will automat
 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6
 ```
 
-![How](https://imgur.com/o1av7G2 "")
+![How](./resources/screenshots/screenshot2.png "")
 
 ## License
 
@@ -28,7 +28,7 @@ MIT
 
 ## Donation
 
-![Donation](https://imgur.com/a/FphJPg6 "")
+![Donation](./resources/donation/donation.png "")
 
 Your support is my motivation to move forward.
 
