@@ -1,15 +1,15 @@
 # Chess Viewer
 
-用于在Joplin笔记中查看和回放国际象棋棋局的插件。支持PGN格式。
+This plugin for viewing and replaying chess games in Joplin Notes. Supports PGN format.
 
-## 使用方法
+![Logo](./resources/icons/logo128.png "")
 
-### 1. 插入PGN棋局
+## Usage
 
-在编辑模式下，点击工具栏上的"插入PGN棋局"按钮，会自动插入一个PGN代码块模板：
+In markdown editor, clicking the "Insert PGN" button on the toolbar will automatically insert a PGN code block template:
 
 ```pgn
-[Event "示例对局"]
+[Event "Example"]
 [Site "?"]
 [Date "2025.05.05"]
 [Round "?"]
@@ -20,24 +20,15 @@
 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6
 ```
 
-### 2. 编辑PGN内容
+![How](./resources/screenshots/screenshot2.png "")
 
-将模板中的内容替换为你的实际棋局数据。PGN格式包括：
-- 标签部分（方括号内的元数据）
-- 移动序列（棋局的实际走法）
-
-### 3. 查看棋局
-
-切换到阅读模式，PGN代码块会自动渲染为交互式棋盘。
-
-
-## 开发
-
-```bash
-npm install
-npm run dist
-```
-
-## 许可证
+## License
 
 MIT
+
+## Donation
+
+![Donation](./resources/donation/donation.png "")
+
+Your support is my motivation to move forward.
+
