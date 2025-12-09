@@ -1,5 +1,5 @@
 import joplin from 'api';
-import { ContentScriptType, ToolbarButtonLocation } from 'api/types';
+import { ContentScriptType, ToolbarButtonLocation, SettingItemType } from 'api/types';
 
 joplin.plugins.register({
 	onStart: async function() {
@@ -42,6 +42,23 @@ joplin.plugins.register({
 			'chessViewer',
 			'./contentScript.js'
 		);
+
+		// 注册配置项
+		await joplin.settings.registerSection('chess-viewer-settings-section', {
+			label: "Chess Viewer",
+			description: "",
+			iconName: "fas fa-chess-knight",
+		})
+
+		await joplin.settings.registerSettings({
+			'lichessToken': {
+				value: '',
+				type: SettingItemType.String,
+				section: 'chess-viewer-settings-section',
+				public: true,
+				label: 'LiChess Token'
+			}
+		});
 
 
 	},
