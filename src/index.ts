@@ -1,5 +1,6 @@
 import joplin from 'api';
 import { ContentScriptType, ToolbarButtonLocation, SettingItemType } from 'api/types';
+import { ChessViewerSettings } from './constants';
 
 joplin.plugins.register({
 	onStart: async function() {
@@ -44,17 +45,17 @@ joplin.plugins.register({
 		);
 
 		// 注册配置项
-		await joplin.settings.registerSection('chess-viewer-settings-section', {
+		await joplin.settings.registerSection(ChessViewerSettings.CHESS_VIEWER_SETTINGS_SECTION, {
 			label: "Chess Viewer",
 			description: "",
 			iconName: "fas fa-chess-knight",
 		})
 
 		await joplin.settings.registerSettings({
-			'lichessToken': {
+			[ChessViewerSettings.LICHESSTOKEN]: {
 				value: '',
 				type: SettingItemType.String,
-				section: 'chess-viewer-settings-section',
+				section: ChessViewerSettings.CHESS_VIEWER_SETTINGS_SECTION,
 				public: true,
 				label: 'LiChess Token'
 			}
