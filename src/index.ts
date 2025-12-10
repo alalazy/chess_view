@@ -1,9 +1,12 @@
 import joplin from 'api';
-import { ContentScriptType, ToolbarButtonLocation, SettingItemType } from 'api/types';
-import { ChessViewerSettings } from './constants';
+import { ContentScriptType, ToolbarButtonLocation } from 'api/types';
+import { ChangeEvent } from 'api/JoplinSettings'
+import { Settings } from './settings';
 
 joplin.plugins.register({
 	onStart: async function() {
+		const settings = new Settings()
+
 		// 注册命令：插入PGN代码块
 		await joplin.commands.register({
 			name: 'insertPGN',
@@ -45,21 +48,11 @@ joplin.plugins.register({
 		);
 
 		// 注册配置项
-		await joplin.settings.registerSection(ChessViewerSettings.CHESS_VIEWER_SETTINGS_SECTION, {
-			label: "Chess Viewer",
-			description: "",
-			iconName: "fas fa-chess-knight",
-		})
+		await settings.register();
+		joplin.settings.onChange(async (event: ChangeEvent) => {
+            await settings.read(event)
+        })
 
-		await joplin.settings.registerSettings({
-			[ChessViewerSettings.LICHESSTOKEN]: {
-				value: '',
-				type: SettingItemType.String,
-				section: ChessViewerSettings.CHESS_VIEWER_SETTINGS_SECTION,
-				public: true,
-				label: 'LiChess Token'
-			}
-		});
 
 
 	},

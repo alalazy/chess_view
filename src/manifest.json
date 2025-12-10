@@ -9,8 +9,7 @@
 	"homepage_url": "https://github.com/alalazy/chess_view",
 	"repository_url": "https://github.com/alalazy/chess_view",
 	"platforms": [
-		"desktop",
-		"mobile"
+		"desktop"
 	],
 	"keywords": [
 		"chess",
