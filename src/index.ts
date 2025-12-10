@@ -48,7 +48,8 @@ joplin.plugins.register({
 		// 处理panel消息
 		await joplin.views.panels.onMessage(panelHandle, async (message: any) => {
 			if (message.action === 'fetchGames') {
-				const importService = new ImportService(settings);
+				const lichessToken = await settings.getValue('lichessToken');
+				const importService = new ImportService(lichessToken);
 
 				try {
 					let games;
@@ -76,15 +77,15 @@ joplin.plugins.register({
 
 		await joplin.commands.register({
 			name: 'importChessGames',
-			label: 'Import Chess Games from Lichess/Chess.com',
-			iconName: 'fas fa-download',
+			label: 'Chess Games',
+			iconName: 'fas fa-chess-board',
 			execute: async () => {
 				await joplin.views.panels.show(panelHandle);
 			},
 		});
 
-		// 添加到工具菜单
-		await joplin.views.menuItems.create('importChessGamesMenu', 'importChessGames', MenuItemLocation.Tools);
+		// 添加到文件→导入菜单
+		await joplin.views.menuItems.create('importChessGamesMenu', 'importChessGames', MenuItemLocation.File);
 
 		// 注册内容脚本用于渲染PGN
 		await joplin.contentScripts.register(
@@ -441,7 +442,7 @@ function getImportPanelHtml(): string {
 /**
  * 导入棋局到Joplin
  */
-async function importGamesToJoplin(games: any[], settings: Settings) {
+	async function importGamesToJoplin(games: any[], settings: Settings) {
 	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
 	
 	// 查找或创建文件夹
@@ -450,7 +451,8 @@ async function importGamesToJoplin(games: any[], settings: Settings) {
 		folder = await joplin.data.post(['folders'], null, { title: folderName });
 	}
 
-	const importService = new ImportService(settings);
+	const lichessToken = await settings.getValue('lichessToken');
+	const importService = new ImportService(lichessToken);
 
 	// 为每个棋局创建笔记
 	for (const game of games) {
