@@ -19,9 +19,16 @@ export class Settings {
             section: Settings.CHESS_VIEWER_SETTINGS_SECTION,
             public: true,
             label: 'LiChess Token',
-            description: 'Input your Lichess API token here.',
+            description: 'Input your Lichess API token here (optional).',
+        },
+        importFolderName: {
+            value: 'Chess Games',
+            type: SettingItemType.String,
+            section: Settings.CHESS_VIEWER_SETTINGS_SECTION,
+            public: true,
+            label: 'Import Folder Name',
+            description: 'The name of the folder where imported games will be stored.',
         }
-        
     }
 
     async register() {
@@ -47,6 +54,10 @@ export class Settings {
         for (let key in this._config) {
             this._config[key].value = await this.getOrDefault(event, this._config[key].value, key)
         }
+    }
+
+    async getValue(key: string): Promise<any> {
+        return this._config[key]?.value || '';
     }
 }
 
