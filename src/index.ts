@@ -41,46 +41,13 @@ joplin.plugins.register({
 		// 添加工具栏按钮
 		await joplin.views.toolbarButtons.create('insertPGNButton', 'insertPGN', ToolbarButtonLocation.EditorToolbar);
 
-		// 注册导入棋局命令 - 使用Panel实现
-		const panelHandle = await joplin.views.panels.create('chessImportPanel');
-		await joplin.views.panels.setHtml(panelHandle, getImportPanelHtml());
-		
-		// 处理panel消息
-		await joplin.views.panels.onMessage(panelHandle, async (message: any) => {
-			if (message.action === 'fetchGames') {
-				const lichessToken = await settings.getValue('lichessToken');
-				const importService = new ImportService(lichessToken);
-
-				try {
-					let games;
-					if (message.platform === 'lichess') {
-						games = await importService.fetchLichessGames(message.username, message.maxGames);
-					} else {
-						games = await importService.fetchChesscomGames(message.username, message.maxGames);
-					}
-					return { success: true, games: games };
-				} catch (error) {
-					return { success: false, error: error.message };
-				}
-			} else if (message.action === 'importGames') {
-				try {
-					await importGamesToJoplin(message.games, settings);
-					return { success: true };
-				} catch (error) {
-					return { success: false, error: error.message };
-				}
-			} else if (message.action === 'close') {
-				await joplin.views.panels.hide(panelHandle);
-				return { success: true };
-			}
-		});
-
+		// 注册导入棋局命令 - 使用Dialog实现
 		await joplin.commands.register({
 			name: 'importChessGames',
-			label: 'Chess Games',
+			label: 'Import Chess Games',
 			iconName: 'fas fa-chess-board',
 			execute: async () => {
-				await joplin.views.panels.show(panelHandle);
+				await showImportDialog(settings);
 			},
 		});
 
@@ -99,16 +66,99 @@ joplin.plugins.register({
 		joplin.settings.onChange(async (event: ChangeEvent) => {
             await settings.read(event)
         })
-
-
-
 	},
 });
 
 /**
- * 生成导入面板的HTML
+ * 显示导入对话框流程
  */
-function getImportPanelHtml(): string {
+async function showImportDialog(settings: Settings) {
+	// 第一步：显示平台选择对话框
+	const dialog1 = await joplin.views.dialogs.create('chessImportDialog1');
+	await joplin.views.dialogs.setHtml(dialog1, getInputDialogHtml());
+	await joplin.views.dialogs.setButtons(dialog1, [
+		{ id: 'cancel', title: 'Cancel' },
+		{ id: 'next', title: 'Next' }
+	]);
+
+	const result1 = await joplin.views.dialogs.open(dialog1);
+	
+	if (result1.id === 'next' && result1.formData) {
+		console.info("===============>>>")
+		console.info(result1);
+		console.info(result1.formData);
+		const { platform, username, maxGames } = result1.formData;
+		
+		if (!username) {
+			await joplin.views.dialogs.showMessageBox('请输入用户名');
+			return;
+		}
+
+		// 获取棋局
+		const importService = new ImportService(settings);
+		
+		try {
+			let games;
+			if (platform === 'lichess') {
+				games = await importService.fetchLichessGames(username, parseInt(maxGames) || 10);
+			} else {
+				games = await importService.fetchChesscomGames(username, parseInt(maxGames) || 10);
+			}
+
+			if (!games || games.length === 0) {
+				await joplin.views.dialogs.showMessageBox('未找到棋局');
+				return;
+			}
+
+			// 第二步：显示棋局列表对话框
+			await showGamesListDialog(games, settings);
+			
+		} catch (error) {
+			await joplin.views.dialogs.showMessageBox('获取棋局失败: ' + error.message);
+		}
+	}
+}
+
+/**
+ * 显示棋局列表对话框（支持分页）
+ */
+async function showGamesListDialog(games: any[], settings: Settings) {
+	const dialog2 = await joplin.views.dialogs.create('chessImportDialog2');
+	await joplin.views.dialogs.setFitToContent(dialog2, false);
+	await joplin.views.dialogs.setHtml(dialog2, getGamesListDialogHtml(games));
+	await joplin.views.dialogs.setButtons(dialog2, [
+		{ id: 'cancel', title: 'Cancel' },
+		{ id: 'import', title: 'Import' }
+	]);
+
+	const result2 = await joplin.views.dialogs.open(dialog2);
+	
+	if (result2.id === 'import' && result2.formData) {
+		// 收集选中的棋局
+		const selectedGames = [];
+		for (let i = 0; i < games.length; i++) {
+			if (result2.formData[`game_${i}`] === 'on') {
+				selectedGames.push(games[i]);
+			}
+		}
+
+		if (selectedGames.length === 0) {
+			return;
+		}
+
+		// 导入棋局
+		try {
+			await importGamesToJoplin(selectedGames, settings);
+		} catch (error) {
+			await joplin.views.dialogs.showMessageBox('导入失败: ' + error.message);
+		}
+	}
+}
+
+/**
+ * 生成输入对话框的HTML
+ */
+function getInputDialogHtml(): string {
 	return `
 <!DOCTYPE html>
 <html>
@@ -119,15 +169,6 @@ function getImportPanelHtml(): string {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 20px;
             margin: 0;
-            background: var(--joplin-background-color);
-            color: var(--joplin-color);
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-        h2 {
-            margin-top: 0;
         }
         .form-group {
             margin-bottom: 15px;
@@ -140,299 +181,220 @@ function getImportPanelHtml(): string {
         input, select {
             width: 100%;
             padding: 8px;
-            border: 1px solid var(--joplin-divider-color);
+            border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box;
             font-size: 14px;
-            background: var(--joplin-background-color);
-            color: var(--joplin-color);
         }
-        .button-group {
+    </style>
+</head>
+<body>
+    <form name="importForm">
+        <div class="form-group">
+            <label for="platform">Select Platform:</label>
+            <select id="platform" name="platform">
+                <option value="lichess">Lichess</option>
+                <option value="chesscom">Chess.com</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" placeholder="Input username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="maxGames">Max Import Games Count (1-50):</label>
+            <input type="number" id="maxGames" name="maxGames" value="10" min="1" max="50">
+        </div>
+    </form>
+</body>
+</html>
+	`;
+}
+
+/**
+ * 生成棋局列表对话框的HTML（支持分页）
+ */
+function getGamesListDialogHtml(games: any[]): string {
+	const ITEMS_PER_PAGE = 10;
+	const totalPages = Math.ceil(games.length / ITEMS_PER_PAGE);
+	
+	return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+        }
+        .header {
+            margin-bottom: 15px;
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
+            justify-content: space-between;
+            align-items: center;
         }
-        button {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            flex: 1;
-        }
-        .btn-primary {
-            background-color: #007bff;
-            color: white;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-        .btn-secondary:hover {
-            background-color: #545b62;
-        }
-        .btn-success {
-            background-color: #28a745;
-            color: white;
-        }
-        .btn-success:hover {
-            background-color: #218838;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-            color: #007bff;
-        }
-        .message {
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
-            display: none;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
+        .select-all {
+            margin-bottom: 10px;
         }
         .games-list {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
-            border: 1px solid var(--joplin-divider-color);
+            border: 1px solid #ccc;
             border-radius: 4px;
             padding: 10px;
-            margin-top: 10px;
-            display: none;
+            margin-bottom: 15px;
         }
         .game-item {
             padding: 10px;
-            border-bottom: 1px solid var(--joplin-divider-color);
+            border-bottom: 1px solid #eee;
             margin-bottom: 5px;
         }
         .game-item:last-child {
             border-bottom: none;
         }
+        .game-item label {
+            cursor: pointer;
+            display: block;
+        }
+        .game-checkbox {
+            margin-right: 8px;
+        }
         .game-players {
             font-weight: 500;
             margin-bottom: 5px;
+            display: inline-block;
         }
         .game-meta {
             font-size: 12px;
             opacity: 0.7;
         }
-        .select-all {
-            margin-bottom: 10px;
-            display: none;
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
         }
-        .game-checkbox {
-            margin-right: 8px;
+        .pagination button {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        }
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination button:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+        .page-info {
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2>导入棋局</h2>
-        
-        <div id="inputForm">
-            <div class="form-group">
-                <label for="platform">选择平台:</label>
-                <select id="platform">
-                    <option value="lichess">Lichess</option>
-                    <option value="chesscom">Chess.com</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="username">用户名:</label>
-                <input type="text" id="username" placeholder="输入用户名">
-            </div>
-
-            <div class="form-group">
-                <label for="maxGames">最大棋局数量 (1-50):</label>
-                <input type="number" id="maxGames" value="10" min="1" max="50">
-            </div>
-
-            <div class="button-group">
-                <button class="btn-secondary" id="closeBtn">关闭</button>
-                <button class="btn-primary" id="fetchBtn">获取棋局</button>
-            </div>
-        </div>
-
-        <div class="loading" id="loading">
-            <p>⏳ 正在处理...</p>
-        </div>
-
-        <div class="message error" id="errorMsg"></div>
-        <div class="message success" id="successMsg"></div>
-
-        <div id="gamesContainer">
-            <div class="select-all" id="selectAllContainer">
+    <form name="gamesForm">
+        <div class="header">
+            <h3>找到 ${games.length} 个棋局</h3>
+            <div class="select-all">
                 <label>
-                    <input type="checkbox" id="selectAll" checked> 全选
+                    <input type="checkbox" id="selectAll" checked> 全选当前页
                 </label>
             </div>
-            <div class="games-list" id="gamesList"></div>
-            <div class="button-group" id="importBtnGroup" style="display: none;">
-                <button class="btn-secondary" id="backBtn">返回</button>
-                <button class="btn-success" id="importBtn">导入选中的棋局</button>
-            </div>
         </div>
-    </div>
 
-    <script>
-        const webviewApi = window.webviewApi || { postMessage: () => {} };
-        let fetchedGames = [];
-        
-        document.getElementById('fetchBtn').addEventListener('click', async () => {
-            const platform = document.getElementById('platform').value;
-            const username = document.getElementById('username').value.trim();
-            const maxGames = parseInt(document.getElementById('maxGames').value);
-
-            if (!username) {
-                showError('请输入用户名');
-                return;
-            }
-
-            showLoading(true);
-            hideMessages();
-
-            try {
-                const response = await webviewApi.postMessage({
-                    action: 'fetchGames',
-                    platform,
-                    username,
-                    maxGames
-                });
-
-                if (response.success && response.games && response.games.length > 0) {
-                    fetchedGames = response.games;
-                    displayGames(response.games);
-                    document.getElementById('inputForm').style.display = 'none';
-                } else {
-                    showError(response.error || '未找到棋局');
-                }
-            } catch (error) {
-                showError('获取棋局失败: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        });
-
-        document.getElementById('selectAll').addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.game-checkbox');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
-        });
-
-        document.getElementById('importBtn').addEventListener('click', async () => {
-            const selectedGames = [];
-            const checkboxes = document.querySelectorAll('.game-checkbox:checked');
-            
-            checkboxes.forEach(cb => {
-                const index = parseInt(cb.dataset.index);
-                selectedGames.push(fetchedGames[index]);
-            });
-
-            if (selectedGames.length === 0) {
-                showError('请至少选择一个棋局');
-                return;
-            }
-
-            showLoading(true);
-            hideMessages();
-
-            try {
-                const response = await webviewApi.postMessage({
-                    action: 'importGames',
-                    games: selectedGames
-                });
-
-                if (response.success) {
-                    showSuccess(\`成功导入 \${selectedGames.length} 个棋局！\`);
-                    setTimeout(() => {
-                        resetForm();
-                    }, 2000);
-                } else {
-                    showError(response.error || '导入失败');
-                }
-            } catch (error) {
-                showError('导入失败: ' + error.message);
-            } finally {
-                showLoading(false);
-            }
-        });
-
-        document.getElementById('backBtn').addEventListener('click', () => {
-            resetForm();
-        });
-
-        document.getElementById('closeBtn').addEventListener('click', async () => {
-            await webviewApi.postMessage({ action: 'close' });
-        });
-
-        function displayGames(games) {
-            const gamesList = document.getElementById('gamesList');
-            gamesList.innerHTML = '';
-
-            games.forEach((game, index) => {
-                const gameItem = document.createElement('div');
-                gameItem.className = 'game-item';
-                gameItem.innerHTML = \`
-                    <label style="cursor: pointer; display: block;">
-                        <input type="checkbox" class="game-checkbox" data-index="\${index}" checked>
+        <div class="games-list" id="gamesList">
+            ${games.map((game, index) => `
+                <div class="game-item" data-index="${index}" style="display: ${index < ITEMS_PER_PAGE ? 'block' : 'none'};">
+                    <label>
+                        <input type="checkbox" class="game-checkbox" name="game_${index}" checked>
                         <div class="game-info" style="display: inline-block; vertical-align: top;">
-                            <div class="game-players">\${game.white} vs \${game.black}</div>
+                            <div class="game-players">${game.white} vs ${game.black}</div>
                             <div class="game-meta">
-                                \${game.date} | \${game.result} | \${game.timeControl || 'N/A'}
+                                ${game.date} | ${game.result} | ${game.timeControl || 'N/A'}
                             </div>
                         </div>
                     </label>
-                \`;
-                gamesList.appendChild(gameItem);
+                </div>
+            `).join('')}
+        </div>
+
+        ${totalPages > 1 ? `
+        <div class="pagination">
+            <button type="button" id="prevBtn" disabled>上一页</button>
+            <span class="page-info">第 <span id="currentPage">1</span> / ${totalPages} 页</span>
+            <button type="button" id="nextBtn" ${totalPages === 1 ? 'disabled' : ''}>下一页</button>
+        </div>
+        ` : ''}
+    </form>
+
+    <script>
+        const ITEMS_PER_PAGE = ${ITEMS_PER_PAGE};
+        const totalPages = ${totalPages};
+        let currentPage = 1;
+
+        // 全选功能
+        document.getElementById('selectAll').addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
+            checkboxes.forEach(cb => cb.checked = e.target.checked);
+        });
+
+        // 分页功能
+        if (totalPages > 1) {
+            document.getElementById('prevBtn').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updatePage();
+                }
             });
 
-            document.getElementById('selectAllContainer').style.display = 'block';
-            document.getElementById('gamesList').style.display = 'block';
-            document.getElementById('importBtnGroup').style.display = 'flex';
+            document.getElementById('nextBtn').addEventListener('click', () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updatePage();
+                }
+            });
         }
 
-        function resetForm() {
-            document.getElementById('inputForm').style.display = 'block';
-            document.getElementById('gamesList').style.display = 'none';
-            document.getElementById('selectAllContainer').style.display = 'none';
-            document.getElementById('importBtnGroup').style.display = 'none';
-            document.getElementById('gamesList').innerHTML = '';
-            fetchedGames = [];
-            hideMessages();
+        function updatePage() {
+            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+            const endIndex = startIndex + ITEMS_PER_PAGE;
+
+            // 更新显示的游戏项
+            const allItems = document.querySelectorAll('.game-item');
+            allItems.forEach((item, index) => {
+                if (index >= startIndex && index < endIndex) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+
+            // 更新按钮状态
+            document.getElementById('prevBtn').disabled = currentPage === 1;
+            document.getElementById('nextBtn').disabled = currentPage === totalPages;
+            document.getElementById('currentPage').textContent = currentPage;
+
+            // 重置全选状态
+            const visibleCheckboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
+            const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+            document.getElementById('selectAll').checked = allChecked;
         }
 
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'block' : 'none';
-        }
-
-        function showError(message) {
-            const errorEl = document.getElementById('errorMsg');
-            errorEl.textContent = message;
-            errorEl.style.display = 'block';
-        }
-
-        function showSuccess(message) {
-            const successEl = document.getElementById('successMsg');
-            successEl.textContent = message;
-            successEl.style.display = 'block';
-        }
-
-        function hideMessages() {
-            document.getElementById('errorMsg').style.display = 'none';
-            document.getElementById('successMsg').style.display = 'none';
-        }
+        // 监听单个复选框变化，更新全选状态
+        document.querySelectorAll('.game-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                const visibleCheckboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
+                const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
+                document.getElementById('selectAll').checked = allChecked;
+            });
+        });
     </script>
 </body>
 </html>
@@ -442,7 +404,7 @@ function getImportPanelHtml(): string {
 /**
  * 导入棋局到Joplin
  */
-	async function importGamesToJoplin(games: any[], settings: Settings) {
+async function importGamesToJoplin(games: any[], settings: Settings) {
 	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
 	
 	// 查找或创建文件夹
