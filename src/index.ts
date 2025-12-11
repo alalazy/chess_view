@@ -74,23 +74,23 @@ joplin.plugins.register({
  */
 async function showImportDialog(settings: Settings) {
 	// 第一步：显示平台选择对话框
-	const dialog1 = await joplin.views.dialogs.create('chessImportDialog1');
-	await joplin.views.dialogs.setHtml(dialog1, getInputDialogHtml());
-	await joplin.views.dialogs.setButtons(dialog1, [
+	const importConfigDialog = await joplin.views.dialogs.create('importConfigDialog');
+	await joplin.views.dialogs.setHtml(importConfigDialog, getInputDialogHtml());
+	await joplin.views.dialogs.setButtons(importConfigDialog, [
 		{ id: 'cancel', title: 'Cancel' },
 		{ id: 'next', title: 'Next' }
 	]);
 
-	const result1 = await joplin.views.dialogs.open(dialog1);
+	const result = await joplin.views.dialogs.open(importConfigDialog);
 	
-	if (result1.id === 'next' && result1.formData) {
+	if (result.id === 'next' && result.formData) {
 		console.info("===============>>>")
-		console.info(result1);
-		console.info(result1.formData);
-		const { platform, username, maxGames } = result1.formData;
+		console.info(result);
+		console.info(result.formData);
+		const { platform, username, maxGames } = result.formData;
 		
 		if (!username) {
-			await joplin.views.dialogs.showMessageBox('请输入用户名');
+			await joplin.views.dialogs.showMessageBox('Input username');
 			return;
 		}
 
@@ -106,7 +106,7 @@ async function showImportDialog(settings: Settings) {
 			}
 
 			if (!games || games.length === 0) {
-				await joplin.views.dialogs.showMessageBox('未找到棋局');
+				await joplin.views.dialogs.showMessageBox('Not found games');
 				return;
 			}
 
@@ -114,7 +114,7 @@ async function showImportDialog(settings: Settings) {
 			await showGamesListDialog(games, settings);
 			
 		} catch (error) {
-			await joplin.views.dialogs.showMessageBox('获取棋局失败: ' + error.message);
+			await joplin.views.dialogs.showMessageBox('Get games failed: ' + error.message);
 		}
 	}
 }
@@ -123,21 +123,21 @@ async function showImportDialog(settings: Settings) {
  * 显示棋局列表对话框（支持分页）
  */
 async function showGamesListDialog(games: any[], settings: Settings) {
-	const dialog2 = await joplin.views.dialogs.create('chessImportDialog2');
-	await joplin.views.dialogs.setFitToContent(dialog2, false);
-	await joplin.views.dialogs.setHtml(dialog2, getGamesListDialogHtml(games));
-	await joplin.views.dialogs.setButtons(dialog2, [
+	const gameSelectDialog = await joplin.views.dialogs.create('gameSelectDialog');
+	await joplin.views.dialogs.setFitToContent(gameSelectDialog, false);
+	await joplin.views.dialogs.setHtml(gameSelectDialog, getGamesListDialogHtml(games));
+	await joplin.views.dialogs.setButtons(gameSelectDialog, [
 		{ id: 'cancel', title: 'Cancel' },
 		{ id: 'import', title: 'Import' }
 	]);
 
-	const result2 = await joplin.views.dialogs.open(dialog2);
+	const result = await joplin.views.dialogs.open(gameSelectDialog);
 	
-	if (result2.id === 'import' && result2.formData) {
+	if (result.id === 'import' && result.formData) {
 		// 收集选中的棋局
 		const selectedGames = [];
 		for (let i = 0; i < games.length; i++) {
-			if (result2.formData[`game_${i}`] === 'on') {
+			if (result.formData[`game_${i}`] === 'on') {
 				selectedGames.push(games[i]);
 			}
 		}
@@ -150,7 +150,7 @@ async function showGamesListDialog(games: any[], settings: Settings) {
 		try {
 			await importGamesToJoplin(selectedGames, settings);
 		} catch (error) {
-			await joplin.views.dialogs.showMessageBox('导入失败: ' + error.message);
+			await joplin.views.dialogs.showMessageBox('Import failed: ' + error.message);
 		}
 	}
 }
