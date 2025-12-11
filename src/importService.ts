@@ -2,6 +2,9 @@
 import { Settings } from "./settings"
 
 export class ImportService {
+    static readonly LICHESS_API_HOST = "https://lichess.org";
+    static readonly CHESSCOM_API_HOST = "https://api.chess.com";
+
     private _settings: Settings
 
     private lichessToken: string = '';
@@ -11,20 +14,25 @@ export class ImportService {
     }
 
     /**
-     * 从Lichess获取用户的棋局
+     * 从Lichess获取用户的棋局（streaming方式）
+     * @param username Lichess用户名
+     * @param onGame 每获取到一个棋局时的回调函数
+     * @param onComplete 完成时的回调函数
+     * @param onError 错误时的回调函数
      */
-    async fetchLichessGames(username: string, maxGames: number = 10): Promise<any[]> {
+    async fetchLichessGames(
+        username: string,
+        onGame: (game: any) => void,
+        onComplete?: () => void,
+        onError?: (error: Error) => void
+    ): Promise<void> {
         try {
             const headers: any = {
                 'Accept': 'application/x-ndjson'
             };
 
-            if (this.lichessToken) {
-                headers['Authorization'] = `Bearer ${this._settings.getValue('lichessToken')}`;
-            }
-
             const response = await fetch(
-                `${Settings.LICHESS_API_HOST}/api/games/user/${username}?max=${maxGames}&pgnInJson=true&clocks=false&evals=false&opening=false`,
+                `${ImportService.LICHESS_API_HOST}/api/games/user/${username}?pgnInJson=true&clocks=false&evals=false&opening=false`,
                 { headers }
             );
 
@@ -32,31 +40,80 @@ export class ImportService {
                 throw new Error(`Lichess API error: ${response.status}`);
             }
 
-            const text = await response.text();
-            const games = text.trim().split('\n')
-                .filter(line => line.trim())
-                .map(line => JSON.parse(line));
+            // 使用streaming方式处理响应
+            const reader = response.body?.getReader();
+            if (!reader) {
+                throw new Error('Response body is not readable');
+            }
 
-            return games.map(game => this.parseLichessGame(game));
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                
+                if (done) {
+                    // 处理最后的buffer
+                    if (buffer.trim()) {
+                        try {
+                            const game = JSON.parse(buffer);
+                            onGame(this.parseLichessGame(game));
+                        } catch (e) {
+                            console.error('Error parsing final game:', e);
+                        }
+                    }
+                    break;
+                }
+
+                // 将新数据添加到buffer
+                buffer += decoder.decode(value, { stream: true });
+
+                // 按行分割并处理完整的行
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // 保留最后一个不完整的行
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        try {
+                            const game = JSON.parse(line);
+                            onGame(this.parseLichessGame(game));
+                        } catch (e) {
+                            console.error('Error parsing game:', e);
+                        }
+                    }
+                }
+            }
+
+            if (onComplete) {
+                onComplete();
+            }
         } catch (error) {
             console.error('Error fetching Lichess games:', error);
-            throw error;
+            if (onError) {
+                onError(error as Error);
+            } else {
+                throw error;
+            }
         }
     }
 
     /**
-     * 从Chess.com获取用户的棋局
+     * 从Chess.com获取用户的棋局（streaming方式）
+     * @param username Chess.com用户名
+     * @param onGame 每获取到一个棋局时的回调函数
+     * @param onComplete 完成时的回调函数
+     * @param onError 错误时的回调函数
      */
-    async fetchChesscomGames(username: string, maxGames: number = 10): Promise<any[]> {
+    async fetchChesscomGames(
+        username: string,
+        onGame: (game: any) => void,
+        onComplete?: () => void,
+        onError?: (error: Error) => void
+    ): Promise<void> {
         try {
-            // 获取当前年月
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-
-            // 获取最近的棋局存档
+            // 获取所有棋局存档列表
             const archivesResponse = await fetch(
-                `${Settings.CHESSCOM_API_HOST}/pub/player/${username}/games/archives`
+                `${ImportService.CHESSCOM_API_HOST}/pub/player/${username}/games/archives`
             );
 
             if (!archivesResponse.ok) {
@@ -67,25 +124,51 @@ export class ImportService {
             const archives = archivesData.archives || [];
 
             if (archives.length === 0) {
-                return [];
+                if (onComplete) {
+                    onComplete();
+                }
+                return;
             }
 
-            // 获取最新月份的棋局
-            const latestArchive = archives[archives.length - 1];
-            const gamesResponse = await fetch(latestArchive);
+            // 从最新到最旧逐月获取棋局
+            for (let i = archives.length - 1; i >= 0; i--) {
+                const archiveUrl = archives[i];
+                
+                try {
+                    const gamesResponse = await fetch(archiveUrl);
 
-            if (!gamesResponse.ok) {
-                throw new Error(`Chess.com games API error: ${gamesResponse.status}`);
+                    if (!gamesResponse.ok) {
+                        console.error(`Chess.com games API error for ${archiveUrl}: ${gamesResponse.status}`);
+                        continue;
+                    }
+
+                    const gamesData = await gamesResponse.json();
+                    const games = gamesData.games || [];
+
+                    // 逐个处理棋局
+                    for (const game of games) {
+                        try {
+                            onGame(this.parseChesscomGame(game));
+                        } catch (e) {
+                            console.error('Error parsing game:', e);
+                        }
+                    }
+                } catch (e) {
+                    console.error(`Error fetching archive ${archiveUrl}:`, e);
+                    // 继续处理下一个存档
+                }
             }
 
-            const gamesData = await gamesResponse.json();
-            const games = gamesData.games || [];
-
-            // 限制数量并解析
-            return games.slice(0, maxGames).map(game => this.parseChesscomGame(game));
+            if (onComplete) {
+                onComplete();
+            }
         } catch (error) {
             console.error('Error fetching Chess.com games:', error);
-            throw error;
+            if (onError) {
+                onError(error as Error);
+            } else {
+                throw error;
+            }
         }
     }
 

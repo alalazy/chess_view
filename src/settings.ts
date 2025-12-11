@@ -7,20 +7,10 @@ interface SettingsConfig {
 }
 
 export class Settings {
-    static readonly LICHESS_API_HOST = "https://lichess.org";
-    static readonly CHESSCOM_API_HOST = "https://api.chess.com";
     
     static readonly CHESS_VIEWER_SETTINGS_SECTION = "chess-viewer-settings-section";
 
     private _config: SettingsConfig = {
-        lichessToken: {
-            value: '',
-            type: SettingItemType.String,
-            section: Settings.CHESS_VIEWER_SETTINGS_SECTION,
-            public: true,
-            label: 'LiChess Token',
-            description: 'Input your Lichess API token here (optional).',
-        },
         importFolderName: {
             value: 'Chess Games',
             type: SettingItemType.String,

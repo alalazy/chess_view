@@ -41,13 +41,15 @@ joplin.plugins.register({
 		// 添加工具栏按钮
 		await joplin.views.toolbarButtons.create('insertPGNButton', 'insertPGN', ToolbarButtonLocation.EditorToolbar);
 
+        const importDialog = await createImportDialog()
+
 		// 注册导入棋局命令 - 使用Dialog实现
 		await joplin.commands.register({
 			name: 'importChessGames',
 			label: 'Import Chess Games',
 			iconName: 'fas fa-chess-board',
 			execute: async () => {
-				await showImportDialog(settings);
+				await showImportDialog(importDialog, settings);
 			},
 		});
 
@@ -69,89 +71,121 @@ joplin.plugins.register({
 	},
 });
 
-/**
- * 显示导入对话框流程
- */
-async function showImportDialog(settings: Settings) {
-	// 第一步：显示平台选择对话框
-	const importConfigDialog = await joplin.views.dialogs.create('importConfigDialog');
-	await joplin.views.dialogs.setHtml(importConfigDialog, getInputDialogHtml());
-	await joplin.views.dialogs.setButtons(importConfigDialog, [
-		{ id: 'cancel', title: 'Cancel' },
-		{ id: 'next', title: 'Next' }
-	]);
 
-	const result = await joplin.views.dialogs.open(importConfigDialog);
+async function createImportDialog() {
+    const importDialog = await joplin.views.dialogs.create('importConfigDialog');
+	await joplin.views.dialogs.setHtml(importDialog, getInputDialogHtml());
+	await joplin.views.dialogs.setButtons(importDialog, [
+		{ id: 'cancel', title: 'Cancel' },
+		{ id: 'import', title: 'Import' }
+	]);
+    return importDialog
+}
+
+async function showImportDialog(dialog, settings: Settings) {
+	const result = await joplin.views.dialogs.open(dialog);
+
+    console.info('============')
+    console.info(result)
+    console.info(result.formData)
 	
-	if (result.id === 'next' && result.formData) {
-		console.info("===============>>>")
-		console.info(result);
-		console.info(result.formData);
-		const { platform, username, maxGames } = result.formData;
+	if (result.id === 'import' && result.formData) {
+		const { platform, username } = result.formData;
+        
 		
 		if (!username) {
-			await joplin.views.dialogs.showMessageBox('Input username');
+			await joplin.views.dialogs.showMessageBox('Please input username');
 			return;
 		}
 
-		// 获取棋局
-		const importService = new ImportService(settings);
-		
-		try {
-			let games;
-			if (platform === 'lichess') {
-				games = await importService.fetchLichessGames(username, parseInt(maxGames) || 10);
-			} else {
-				games = await importService.fetchChesscomGames(username, parseInt(maxGames) || 10);
-			}
-
-			if (!games || games.length === 0) {
-				await joplin.views.dialogs.showMessageBox('Not found games');
-				return;
-			}
-
-			// 第二步：显示棋局列表对话框
-			await showGamesListDialog(games, settings);
-			
-		} catch (error) {
-			await joplin.views.dialogs.showMessageBox('Get games failed: ' + error.message);
-		}
+		// 第二步：显示进度对话框并开始导入
+		await showProgressDialogAndImport(platform, username, settings);
 	}
 }
 
 /**
- * 显示棋局列表对话框（支持分页）
+ * 显示进度对话框并执行导入
  */
-async function showGamesListDialog(games: any[], settings: Settings) {
-	const gameSelectDialog = await joplin.views.dialogs.create('gameSelectDialog');
-	await joplin.views.dialogs.setFitToContent(gameSelectDialog, false);
-	await joplin.views.dialogs.setHtml(gameSelectDialog, getGamesListDialogHtml(games));
-	await joplin.views.dialogs.setButtons(gameSelectDialog, [
-		{ id: 'cancel', title: 'Cancel' },
-		{ id: 'import', title: 'Import' }
-	]);
-
-	const result = await joplin.views.dialogs.open(gameSelectDialog);
+async function showProgressDialogAndImport(platform: string, username: string, settings: Settings) {
+	// 创建进度对话框
+	const progressDialog = await joplin.views.dialogs.create('progressDialog');
+	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml());
+	await joplin.views.dialogs.setButtons(progressDialog, []);
 	
-	if (result.id === 'import' && result.formData) {
-		// 收集选中的棋局
-		const selectedGames = [];
-		for (let i = 0; i < games.length; i++) {
-			if (result.formData[`game_${i}`] === 'on') {
-				selectedGames.push(games[i]);
+	// 非阻塞方式打开对话框
+	const dialogPromise = joplin.views.dialogs.open(progressDialog);
+	
+	// 开始导入
+	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
+	let folder = await findFolderByName(folderName);
+	if (!folder) {
+		folder = await joplin.data.post(['folders'], null, { title: folderName });
+	}
+
+	const importService = new ImportService(settings);
+	let importedCount = 0;
+	let totalGames = 0;
+	const games: any[] = [];
+
+	try {
+		// 更新进度：开始获取棋局
+		await updateProgressDialog(progressDialog, 'Fetching games...', 0, 0, 0);
+
+		// 定义回调函数
+		const onGame = async (game: any) => {
+			games.push(game);
+			totalGames++;
+			// 更新进度：正在获取
+			await updateProgressDialog(progressDialog, `Fetching games... (${totalGames} found)`, 0, 0, totalGames);
+		};
+
+		const onComplete = async () => {
+			// 开始导入
+			await updateProgressDialog(progressDialog, 'Starting import...', 0, totalGames, totalGames);
+			
+			for (const game of games) {
+				try {
+					const noteTitle = `${game.white} vs ${game.black} - ${game.date}`;
+					const pgn = importService.generatePGN(game);
+					const noteBody = `# ${noteTitle}\n\n\`\`\`pgn\n${pgn}\n\`\`\`\n`;
+
+					await joplin.data.post(['notes'], null, {
+						title: noteTitle,
+						body: noteBody,
+						parent_id: folder.id,
+					});
+
+					importedCount++;
+					const progress = Math.round((importedCount / totalGames) * 100);
+					await updateProgressDialog(progressDialog, `Importing games...`, progress, importedCount, totalGames);
+				} catch (error) {
+					console.error('Error importing game:', error);
+				}
 			}
+
+			// 完成
+			await updateProgressDialog(progressDialog, `Import completed!`, 100, importedCount, totalGames);
+			await new Promise(resolve => setTimeout(resolve, 1000)); // 显示完成状态1秒
+			
+			// 关闭对话框
+			await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
+		};
+
+		const onError = async (error: Error) => {
+			await updateProgressDialog(progressDialog, `Error: ${error.message}`, 0, importedCount, totalGames);
+			await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
+		};
+
+		// 根据平台获取棋局
+		if (platform === 'lichess') {
+			await importService.fetchLichessGames(username, onGame, onComplete, onError);
+		} else {
+			await importService.fetchChesscomGames(username, onGame, onComplete, onError);
 		}
 
-		if (selectedGames.length === 0) {
-			return;
-		}
-
-		// 导入棋局
-		try {
-			await importGamesToJoplin(selectedGames, settings);
-		} catch (error) {
-			await joplin.views.dialogs.showMessageBox('Import failed: ' + error.message);
-		}
+	} catch (error) {
+		await updateProgressDialog(progressDialog, `Error: ${error.message}`, 0, importedCount, totalGames);
+		await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
 	}
 }
 
@@ -186,6 +220,14 @@ function getInputDialogHtml(): string {
             box-sizing: border-box;
             font-size: 14px;
         }
+        .info {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f0f8ff;
+            border-left: 3px solid #4a90e2;
+            font-size: 13px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -203,9 +245,8 @@ function getInputDialogHtml(): string {
             <input type="text" id="username" name="username" placeholder="Input username" required>
         </div>
 
-        <div class="form-group">
-            <label for="maxGames">Max Import Games Count (1-50):</label>
-            <input type="number" id="maxGames" name="maxGames" value="10" min="1" max="50">
+        <div class="info">
+            ℹ️ All games from this user will be imported. This may take a while depending on the number of games.
         </div>
     </form>
 </body>
@@ -214,12 +255,9 @@ function getInputDialogHtml(): string {
 }
 
 /**
- * 生成棋局列表对话框的HTML（支持分页）
+ * 生成进度对话框的HTML
  */
-function getGamesListDialogHtml(games: any[]): string {
-	const ITEMS_PER_PAGE = 10;
-	const totalPages = Math.ceil(games.length / ITEMS_PER_PAGE);
-	
+function getProgressDialogHtml(): string {
 	return `
 <!DOCTYPE html>
 <html>
@@ -230,206 +268,142 @@ function getGamesListDialogHtml(games: any[]): string {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 20px;
             margin: 0;
+            min-width: 400px;
         }
-        .header {
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .progress-container {
+            margin-bottom: 20px;
         }
-        .select-all {
+        .progress-label {
             margin-bottom: 10px;
-        }
-        .games-list {
-            max-height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 10px;
-            margin-bottom: 15px;
-        }
-        .game-item {
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 5px;
-        }
-        .game-item:last-child {
-            border-bottom: none;
-        }
-        .game-item label {
-            cursor: pointer;
-            display: block;
-        }
-        .game-checkbox {
-            margin-right: 8px;
-        }
-        .game-players {
             font-weight: 500;
-            margin-bottom: 5px;
-            display: inline-block;
-        }
-        .game-meta {
-            font-size: 12px;
-            opacity: 0.7;
-        }
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .pagination button {
-            padding: 5px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: white;
-            cursor: pointer;
-        }
-        .pagination button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        .pagination button:hover:not(:disabled) {
-            background: #f0f0f0;
-        }
-        .page-info {
             font-size: 14px;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a90e2, #357abd);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: #333;
+            z-index: 1;
+        }
+        .status-text {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
         }
     </style>
 </head>
 <body>
-    <form name="gamesForm">
-        <div class="header">
-            <h3>找到 ${games.length} 个棋局</h3>
-            <div class="select-all">
-                <label>
-                    <input type="checkbox" id="selectAll" checked> 全选当前页
-                </label>
-            </div>
+    <div class="progress-container">
+        <div class="progress-label" id="progressLabel">Initializing...</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+            <div class="progress-text" id="progressText">0%</div>
         </div>
-
-        <div class="games-list" id="gamesList">
-            ${games.map((game, index) => `
-                <div class="game-item" data-index="${index}" style="display: ${index < ITEMS_PER_PAGE ? 'block' : 'none'};">
-                    <label>
-                        <input type="checkbox" class="game-checkbox" name="game_${index}" checked>
-                        <div class="game-info" style="display: inline-block; vertical-align: top;">
-                            <div class="game-players">${game.white} vs ${game.black}</div>
-                            <div class="game-meta">
-                                ${game.date} | ${game.result} | ${game.timeControl || 'N/A'}
-                            </div>
-                        </div>
-                    </label>
-                </div>
-            `).join('')}
-        </div>
-
-        ${totalPages > 1 ? `
-        <div class="pagination">
-            <button type="button" id="prevBtn" disabled>上一页</button>
-            <span class="page-info">第 <span id="currentPage">1</span> / ${totalPages} 页</span>
-            <button type="button" id="nextBtn" ${totalPages === 1 ? 'disabled' : ''}>下一页</button>
-        </div>
-        ` : ''}
-    </form>
-
-    <script>
-        const ITEMS_PER_PAGE = ${ITEMS_PER_PAGE};
-        const totalPages = ${totalPages};
-        let currentPage = 1;
-
-        // 全选功能
-        document.getElementById('selectAll').addEventListener('change', (e) => {
-            const checkboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
-        });
-
-        // 分页功能
-        if (totalPages > 1) {
-            document.getElementById('prevBtn').addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    updatePage();
-                }
-            });
-
-            document.getElementById('nextBtn').addEventListener('click', () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    updatePage();
-                }
-            });
-        }
-
-        function updatePage() {
-            const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-            const endIndex = startIndex + ITEMS_PER_PAGE;
-
-            // 更新显示的游戏项
-            const allItems = document.querySelectorAll('.game-item');
-            allItems.forEach((item, index) => {
-                if (index >= startIndex && index < endIndex) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-
-            // 更新按钮状态
-            document.getElementById('prevBtn').disabled = currentPage === 1;
-            document.getElementById('nextBtn').disabled = currentPage === totalPages;
-            document.getElementById('currentPage').textContent = currentPage;
-
-            // 重置全选状态
-            const visibleCheckboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
-            const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
-            document.getElementById('selectAll').checked = allChecked;
-        }
-
-        // 监听单个复选框变化，更新全选状态
-        document.querySelectorAll('.game-checkbox').forEach(cb => {
-            cb.addEventListener('change', () => {
-                const visibleCheckboxes = document.querySelectorAll('.game-item[style*="display: block"] .game-checkbox');
-                const allChecked = Array.from(visibleCheckboxes).every(cb => cb.checked);
-                document.getElementById('selectAll').checked = allChecked;
-            });
-        });
-    </script>
+        <div class="status-text" id="statusText">Please wait...</div>
+    </div>
 </body>
 </html>
 	`;
 }
 
 /**
- * 导入棋局到Joplin
+ * 更新进度对话框
  */
-async function importGamesToJoplin(games: any[], settings: Settings) {
-	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
-	
-	// 查找或创建文件夹
-	let folder = await findFolderByName(folderName);
-	if (!folder) {
-		folder = await joplin.data.post(['folders'], null, { title: folderName });
-	}
-
-	const lichessToken = await settings.getValue('lichessToken');
-	const importService = new ImportService(lichessToken);
-
-	// 为每个棋局创建笔记
-	for (const game of games) {
-		const noteTitle = `${game.white} vs ${game.black} - ${game.date}`;
-		const pgn = importService.generatePGN(game);
-		const noteBody = `# ${noteTitle}\n\n\`\`\`pgn\n${pgn}\n\`\`\`\n`;
-
-		await joplin.data.post(['notes'], null, {
-			title: noteTitle,
-			body: noteBody,
-			parent_id: folder.id,
-		});
-	}
-
-	await joplin.views.dialogs.showMessageBox(`Successfully imported ${games.length} game(s) to folder "${folderName}"`);
+async function updateProgressDialog(
+	dialog: any,
+	label: string,
+	progress: number,
+	imported: number,
+	total: number
+) {
+	const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 20px;
+            margin: 0;
+            min-width: 400px;
+        }
+        .progress-container {
+            margin-bottom: 20px;
+        }
+        .progress-label {
+            margin-bottom: 10px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .progress-bar-container {
+            width: 100%;
+            height: 30px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a90e2, #357abd);
+            transition: width 0.3s ease;
+            width: ${progress}%;
+        }
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: bold;
+            font-size: 12px;
+            color: #333;
+            z-index: 1;
+        }
+        .status-text {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="progress-container">
+        <div class="progress-label">${label}</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar"></div>
+            <div class="progress-text">${progress}%</div>
+        </div>
+        <div class="status-text">${imported} / ${total} games imported</div>
+    </div>
+</body>
+</html>
+	`;
+	await joplin.views.dialogs.setHtml(dialog, html);
 }
 
 /**
