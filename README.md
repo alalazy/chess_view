@@ -26,16 +26,16 @@ In markdown editor, clicking the "Insert PGN" button on the toolbar will automat
 ### Input games form lichess or chess.com
 #### 1. Set chess games folder
 
-[How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot3.png "")
+![How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot3.png "")
 
 #### 2. Import chess games
 Click File menu and click **Import Chess Games**
 
-[How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot4.png "")
+![How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot4.png "")
 
 Select platform and import
 
-[How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot5.png "")
+![How](https://github.com/alalazy/chess_view/blob/main/resources/screenshots/screenshot5.png "")
 
 ## License
 
