@@ -1,12 +1,12 @@
 import joplin from 'api';
 import { ContentScriptType, ToolbarButtonLocation, MenuItemLocation } from 'api/types';
-import { ChangeEvent } from 'api/JoplinSettings'
+import { ChangeEvent } from 'api/JoplinSettings';
 import { Settings } from './settings';
 import { ImportService } from './importService';
 
 joplin.plugins.register({
 	onStart: async function() {
-		const settings = new Settings()
+		const settings = new Settings();
 
 		// 注册命令：插入PGN代码块
 		await joplin.commands.register({
@@ -14,10 +14,10 @@ joplin.plugins.register({
 			label: 'Insert PGN',
 			iconName: 'fas fa-chess',
 			execute: async () => {
-				const selectedNote = await joplin.workspace.selectedNote();
+				const selectedNote = await joplin.workspace.selectedNote()
 				if (!selectedNote) {
-					await joplin.views.dialogs.showMessageBox('Please select a note first!');
-					return;
+					await joplin.views.dialogs.showMessageBox('Please select a note first!')
+					return
 				}
 
 				// 插入PGN代码块模板
@@ -35,13 +35,14 @@ joplin.plugins.register({
 
 				await joplin.commands.execute('insertText', pgnTemplate);
 			},
-			enabledCondition: 'markdownEditorPaneVisible',
+			enabledCondition: 'markdownEditorPaneVisible'
 		});
 
 		// 添加工具栏按钮
 		await joplin.views.toolbarButtons.create('insertPGNButton', 'insertPGN', ToolbarButtonLocation.EditorToolbar);
 
-        const importDialog = await createImportDialog()
+        const importDialog = await createImportDialog();
+        const progressDialog = await createProgressDialog();
 
 		// 注册导入棋局命令 - 使用Dialog实现
 		await joplin.commands.register({
@@ -49,8 +50,8 @@ joplin.plugins.register({
 			label: 'Import Chess Games',
 			iconName: 'fas fa-chess-board',
 			execute: async () => {
-				await showImportDialog(importDialog, settings);
-			},
+				await showImportDialog(importDialog, progressDialog, settings);
+			}
 		});
 
 		// 添加到文件→导入菜单
@@ -67,7 +68,7 @@ joplin.plugins.register({
 		await settings.register();
 		joplin.settings.onChange(async (event: ChangeEvent) => {
             await settings.read(event)
-        })
+        });
 	},
 });
 
@@ -75,22 +76,20 @@ joplin.plugins.register({
 async function createImportDialog() {
     const importDialog = await joplin.views.dialogs.create('importConfigDialog');
 	await joplin.views.dialogs.setHtml(importDialog, getInputDialogHtml());
+    await joplin.views.dialogs.addScript(importDialog, './importDialog.css');
 	await joplin.views.dialogs.setButtons(importDialog, [
-		{ id: 'cancel', title: 'Cancel' },
-		{ id: 'import', title: 'Import' }
+        { id: 'import', title: 'Import' },
+		{ id: 'cancel', title: 'Cancel' }
 	]);
-    return importDialog
+    return importDialog;
 }
 
-async function showImportDialog(dialog, settings: Settings) {
-	const result = await joplin.views.dialogs.open(dialog);
-
-    console.info('============')
-    console.info(result)
-    console.info(result.formData)
+async function showImportDialog(importDialog, progressDialog, settings: Settings) {
+	const result = await joplin.views.dialogs.open(importDialog);
 	
 	if (result.id === 'import' && result.formData) {
-		const { platform, username } = result.formData;
+		const platform = result.formData.importForm.platform;
+        const username = result.formData.importForm.username;
         
 		
 		if (!username) {
@@ -98,22 +97,22 @@ async function showImportDialog(dialog, settings: Settings) {
 			return;
 		}
 
-		// 第二步：显示进度对话框并开始导入
-		await showProgressDialogAndImport(platform, username, settings);
+		await showProgressDialogAndImport(progressDialog, platform, username, settings);
 	}
 }
 
-/**
- * 显示进度对话框并执行导入
- */
-async function showProgressDialogAndImport(platform: string, username: string, settings: Settings) {
-	// 创建进度对话框
-	const progressDialog = await joplin.views.dialogs.create('progressDialog');
+
+async function createProgressDialog() {
+    const progressDialog = await joplin.views.dialogs.create('progressDialog');
 	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml());
+    await joplin.views.dialogs.addScript(progressDialog, './importProgress.css');
 	await joplin.views.dialogs.setButtons(progressDialog, []);
-	
+    return progressDialog
+}
+
+async function showProgressDialogAndImport(dialog, platform: string, username: string, settings: Settings) {
 	// 非阻塞方式打开对话框
-	const dialogPromise = joplin.views.dialogs.open(progressDialog);
+	const dialogPromise = joplin.views.dialogs.open(dialog);
 	
 	// 开始导入
 	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
@@ -129,19 +128,19 @@ async function showProgressDialogAndImport(platform: string, username: string, s
 
 	try {
 		// 更新进度：开始获取棋局
-		await updateProgressDialog(progressDialog, 'Fetching games...', 0, 0, 0);
+		await updateProgressDialog(dialog, 'Fetching games...', 0, 0, 0);
 
 		// 定义回调函数
 		const onGame = async (game: any) => {
 			games.push(game);
 			totalGames++;
 			// 更新进度：正在获取
-			await updateProgressDialog(progressDialog, `Fetching games... (${totalGames} found)`, 0, 0, totalGames);
+			await updateProgressDialog(dialog, `Fetching games... (${totalGames} found)`, 0, 0, totalGames);
 		};
 
 		const onComplete = async () => {
 			// 开始导入
-			await updateProgressDialog(progressDialog, 'Starting import...', 0, totalGames, totalGames);
+			await updateProgressDialog(dialog, 'Starting import...', 0, totalGames, totalGames);
 			
 			for (const game of games) {
 				try {
@@ -157,26 +156,23 @@ async function showProgressDialogAndImport(platform: string, username: string, s
 
 					importedCount++;
 					const progress = Math.round((importedCount / totalGames) * 100);
-					await updateProgressDialog(progressDialog, `Importing games...`, progress, importedCount, totalGames);
+					await updateProgressDialog(dialog, `Importing games...`, progress, importedCount, totalGames);
 				} catch (error) {
 					console.error('Error importing game:', error);
 				}
 			}
 
-			// 完成
-			await updateProgressDialog(progressDialog, `Import completed!`, 100, importedCount, totalGames);
+			await updateProgressDialog(dialog, `Import completed!`, 100, importedCount, totalGames);
 			await new Promise(resolve => setTimeout(resolve, 1000)); // 显示完成状态1秒
 			
-			// 关闭对话框
-			await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
+			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
 		};
 
 		const onError = async (error: Error) => {
-			await updateProgressDialog(progressDialog, `Error: ${error.message}`, 0, importedCount, totalGames);
-			await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
+			await updateProgressDialog(dialog, `Error: ${error.message}`, 0, importedCount, totalGames);
+			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
 		};
 
-		// 根据平台获取棋局
 		if (platform === 'lichess') {
 			await importService.fetchLichessGames(username, onGame, onComplete, onError);
 		} else {
@@ -184,8 +180,8 @@ async function showProgressDialogAndImport(platform: string, username: string, s
 		}
 
 	} catch (error) {
-		await updateProgressDialog(progressDialog, `Error: ${error.message}`, 0, importedCount, totalGames);
-		await joplin.views.dialogs.setButtons(progressDialog, [{ id: 'ok', title: 'OK' }]);
+		await updateProgressDialog(dialog, `Error: ${error.message}`, 0, importedCount, totalGames);
+		await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
 	}
 }
 
@@ -194,63 +190,23 @@ async function showProgressDialogAndImport(platform: string, username: string, s
  */
 function getInputDialogHtml(): string {
 	return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
-            margin: 0;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        input, select {
-            width: 100%;
-            padding: 8px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 14px;
-        }
-        .info {
-            margin-top: 15px;
-            padding: 10px;
-            background-color: #f0f8ff;
-            border-left: 3px solid #4a90e2;
-            font-size: 13px;
-            color: #333;
-        }
-    </style>
-</head>
-<body>
-    <form name="importForm">
-        <div class="form-group">
-            <label for="platform">Select Platform:</label>
-            <select id="platform" name="platform">
-                <option value="lichess">Lichess</option>
-                <option value="chesscom">Chess.com</option>
-            </select>
-        </div>
+    <div class="form-container">
+        <div class="form-title">Import Chess Games</div>
+        <form name="importForm">
+            <div class="form-group">
+                <label for="platform">Platform</label>
+                <select id="platform" name="platform">
+                    <option value="lichess">Lichess</option>
+                    <option value="chesscom">Chess.com</option>
+                </select>
+            </div>
 
-        <div class="form-group">
-            <label for="username">Username:</label>
-            <input type="text" id="username" name="username" placeholder="Input username" required>
-        </div>
-
-        <div class="info">
-            ℹ️ All games from this user will be imported. This may take a while depending on the number of games.
-        </div>
-    </form>
-</body>
-</html>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+            </div>
+        </form>
+    </div>
 	`;
 }
 
@@ -259,73 +215,17 @@ function getInputDialogHtml(): string {
  */
 function getProgressDialogHtml(): string {
 	return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
-            margin: 0;
-            min-width: 400px;
-        }
-        .progress-container {
-            margin-bottom: 20px;
-        }
-        .progress-label {
-            margin-bottom: 10px;
-            font-weight: 500;
-            font-size: 14px;
-        }
-        .progress-bar-container {
-            width: 100%;
-            height: 30px;
-            background-color: #f0f0f0;
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-        }
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #4a90e2, #357abd);
-            transition: width 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-weight: bold;
-            font-size: 12px;
-            color: #333;
-            z-index: 1;
-        }
-        .status-text {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #666;
-            text-align: center;
-        }
-    </style>
-</head>
-<body>
-    <div class="progress-container">
-        <div class="progress-label" id="progressLabel">Initializing...</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
-            <div class="progress-text" id="progressText">0%</div>
+    <div class="progress-wrapper">
+        <div class="progress-title">Importing Chess Games</div>
+        <div class="progress-container">
+            <div class="progress-label" id="progressLabel">Initializing...</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
+                <div class="progress-text" id="progressText">0%</div>
+            </div>
+            <div class="status-text" id="statusText">Please wait...</div>
         </div>
-        <div class="status-text" id="statusText">Please wait...</div>
     </div>
-</body>
-</html>
 	`;
 }
 
@@ -347,29 +247,44 @@ async function updateProgressDialog(
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 20px;
+            padding: 24px;
             margin: 0;
-            min-width: 400px;
+            min-width: 380px;
+            background-color: var(--joplin-background-color, #ffffff);
+        }
+        .progress-wrapper {
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .progress-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--joplin-color, #333);
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--joplin-divider-color, #e0e0e0);
         }
         .progress-container {
-            margin-bottom: 20px;
+            margin-bottom: 16px;
         }
         .progress-label {
             margin-bottom: 10px;
             font-weight: 500;
-            font-size: 14px;
+            font-size: 13px;
+            color: var(--joplin-color, #555);
         }
         .progress-bar-container {
             width: 100%;
-            height: 30px;
-            background-color: #f0f0f0;
-            border-radius: 15px;
+            height: 24px;
+            background-color: var(--joplin-background-color-hover, #f5f5f5);
+            border-radius: 4px;
             overflow: hidden;
             position: relative;
+            border: 1px solid var(--joplin-divider-color, #e0e0e0);
         }
         .progress-bar {
             height: 100%;
-            background: linear-gradient(90deg, #4a90e2, #357abd);
+            background-color: var(--joplin-color-focus, #5e9ed6);
             transition: width 0.3s ease;
             width: ${progress}%;
         }
@@ -378,27 +293,29 @@ async function updateProgressDialog(
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-weight: bold;
-            font-size: 12px;
-            color: #333;
+            font-weight: 500;
+            font-size: 11px;
+            color: var(--joplin-color, #333);
             z-index: 1;
         }
         .status-text {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #666;
-            text-align: center;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--joplin-color-faded, #666);
         }
     </style>
 </head>
 <body>
-    <div class="progress-container">
-        <div class="progress-label">${label}</div>
-        <div class="progress-bar-container">
-            <div class="progress-bar"></div>
-            <div class="progress-text">${progress}%</div>
+    <div class="progress-wrapper">
+        <div class="progress-title">Importing Chess Games</div>
+        <div class="progress-container">
+            <div class="progress-label">${label}</div>
+            <div class="progress-bar-container">
+                <div class="progress-bar"></div>
+                <div class="progress-text">${progress}%</div>
+            </div>
+            <div class="status-text">${imported} / ${total} games imported</div>
         </div>
-        <div class="status-text">${imported} / ${total} games imported</div>
     </div>
 </body>
 </html>

@@ -13,13 +13,6 @@ export class ImportService {
         this._settings = settings
     }
 
-    /**
-     * 从Lichess获取用户的棋局（streaming方式）
-     * @param username Lichess用户名
-     * @param onGame 每获取到一个棋局时的回调函数
-     * @param onComplete 完成时的回调函数
-     * @param onError 错误时的回调函数
-     */
     async fetchLichessGames(
         username: string,
         onGame: (game: any) => void,
@@ -97,13 +90,6 @@ export class ImportService {
         }
     }
 
-    /**
-     * 从Chess.com获取用户的棋局（streaming方式）
-     * @param username Chess.com用户名
-     * @param onGame 每获取到一个棋局时的回调函数
-     * @param onComplete 完成时的回调函数
-     * @param onError 错误时的回调函数
-     */
     async fetchChesscomGames(
         username: string,
         onGame: (game: any) => void,
