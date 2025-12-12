@@ -24,6 +24,10 @@
 		{
 			"src": "resources/screenshots/screenshot2.png",
 			"label": "chessedit"
+		},
+		{
+			"src": "resources/screenshots/screenshot5.png",
+			"label": "chessedit"
 		}
 	],
 	"icons": {

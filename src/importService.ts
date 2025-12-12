@@ -86,7 +86,6 @@ export class ImportService {
         onError?: (error: Error) => void
     ): Promise<void> {
         try {
-            // 获取所有棋局存档列表
             const archivesResponse = await fetch(
                 `${ImportService.CHESSCOM_API_HOST}/pub/player/${username}/games/archives`
             );
@@ -130,7 +129,6 @@ export class ImportService {
                     }
                 } catch (e) {
                     console.error(`Error fetching archive ${archiveUrl}:`, e);
-                    // 继续处理下一个存档
                 }
             }
 
@@ -147,9 +145,7 @@ export class ImportService {
         }
     }
 
-    /**
-     * 解析Lichess棋局数据
-     */
+
     private parseLichessGame(game: any): any {
         const white = game.players?.white?.user?.name || 'Unknown';
         const black = game.players?.black?.user?.name || 'Unknown';
@@ -165,7 +161,7 @@ export class ImportService {
             timeControl,
             pgn: game.pgn || '',
             event: game.event || 'Lichess Game',
-            site: `https://lichess.org/${game.id}`,
+            site: `${ImportService.LICHESS_API_HOST}/${game.id}`,
             round: game.round || '?',
         };
     }
@@ -193,9 +189,6 @@ export class ImportService {
         };
     }
 
-    /**
-     * 格式化结果
-     */
     private formatResult(winner: string | undefined, status: string): string {
         if (!winner) {
             return status === 'draw' ? '1/2-1/2' : '*';
@@ -203,9 +196,6 @@ export class ImportService {
         return winner === 'white' ? '1-0' : '0-1';
     }
 
-    /**
-     * 标准化Chess.com的结果格式
-     */
     private normalizeChesscomResult(result: string): string {
         const resultMap: { [key: string]: string } = {
             'win': '1-0',
@@ -222,9 +212,6 @@ export class ImportService {
         return resultMap[result] || result;
     }
 
-    /**
-     * 生成PGN文本
-     */
     generatePGN(game: any): string {
         if (game.pgn) {
             return game.pgn;

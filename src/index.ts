@@ -117,13 +117,7 @@ async function getOrCreateFolder(platform: string, username: string, settings: S
 	if (!baseFolder) {
 		baseFolder = await joplin.data.post(['folders'], null, { title: baseFolderName });
 	}
-
-    const folderName = `${platform}-${username}`;
-	let folder = await findFolderByName(folderName);
-	if (!folder) {
-		folder = await joplin.data.post(['folders'], null, { parent:baseFolder.id, title: folderName });
-	}
-    return folder;
+    return baseFolder;
 }
 
 async function showProgressDialogAndImport(dialog, platform: string, username: string, settings: Settings) {
@@ -211,7 +205,7 @@ function getInputDialogHtml(): string {
 
             <div class="form-group">
                 <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter your username" required>
+                <input type="text" id="username" name="username" placeholder="Enter username" required>
             </div>
         </form>
     </div>
@@ -229,7 +223,7 @@ function getProgressDialogHtml(label: string, progress: number, statusText: stri
                 <div class="progress-bar" style="width: ${progress}%;"></div>
                 <div class="progress-text">${progress}%</div>
             </div>
-            <div class="status-text">${statusText}games imported</div>
+            <div class="status-text">${statusText} games imported</div>
         </div>
     </div>
 	`;
