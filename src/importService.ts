@@ -1,17 +1,6 @@
-
-import { Settings } from "./settings"
-
 export class ImportService {
     static readonly LICHESS_API_HOST = "https://lichess.org";
     static readonly CHESSCOM_API_HOST = "https://api.chess.com";
-
-    private _settings: Settings
-
-    private lichessToken: string = '';
-
-    constructor(settings: Settings) {
-        this._settings = settings
-    }
 
     async fetchLichessGames(
         username: string,

@@ -4,6 +4,7 @@ import { ChangeEvent } from 'api/JoplinSettings';
 import { Settings } from './settings';
 import { ImportService } from './importService';
 
+
 joplin.plugins.register({
 	onStart: async function() {
 		const settings = new Settings();
@@ -104,24 +105,33 @@ async function showImportDialog(importDialog, progressDialog, settings: Settings
 
 async function createProgressDialog() {
     const progressDialog = await joplin.views.dialogs.create('progressDialog');
-	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml());
+	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml('Initializing...', 0, 'Please wait...'));
     await joplin.views.dialogs.addScript(progressDialog, './importProgress.css');
 	await joplin.views.dialogs.setButtons(progressDialog, []);
     return progressDialog
 }
 
-async function showProgressDialogAndImport(dialog, platform: string, username: string, settings: Settings) {
-	// 非阻塞方式打开对话框
-	const dialogPromise = joplin.views.dialogs.open(dialog);
-	
-	// 开始导入
-	const folderName = await settings.getValue('importFolderName') || 'Chess Games';
-	let folder = await findFolderByName(folderName);
-	if (!folder) {
-		folder = await joplin.data.post(['folders'], null, { title: folderName });
+async function getOrCreateFolder(platform: string, username: string, settings: Settings) {
+    const baseFolderName = await settings.getValue('importFolderName');
+    let baseFolder = await findFolderByName(baseFolderName);
+	if (!baseFolder) {
+		baseFolder = await joplin.data.post(['folders'], null, { title: baseFolderName });
 	}
 
-	const importService = new ImportService(settings);
+    const folderName = `${platform}-${username}`;
+	let folder = await findFolderByName(folderName);
+	if (!folder) {
+		folder = await joplin.data.post(['folders'], null, { parent:baseFolder.id, title: folderName });
+	}
+    return folder;
+}
+
+async function showProgressDialogAndImport(dialog, platform: string, username: string, settings: Settings) {
+    joplin.views.dialogs.open(dialog);
+	
+	const folder = await getOrCreateFolder(platform, username, settings);
+
+	const importService = new ImportService();
 	let importedCount = 0;
 	let totalGames = 0;
 	const games: any[] = [];
@@ -185,9 +195,7 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 	}
 }
 
-/**
- * 生成输入对话框的HTML
- */
+
 function getInputDialogHtml(): string {
 	return `
     <div class="form-container">
@@ -210,28 +218,24 @@ function getInputDialogHtml(): string {
 	`;
 }
 
-/**
- * 生成进度对话框的HTML
- */
-function getProgressDialogHtml(): string {
+
+function getProgressDialogHtml(label: string, progress: number, statusText: string): string {
 	return `
     <div class="progress-wrapper">
         <div class="progress-title">Importing Chess Games</div>
         <div class="progress-container">
-            <div class="progress-label" id="progressLabel">Initializing...</div>
+            <div class="progress-label">${label}</div>
             <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
-                <div class="progress-text" id="progressText">0%</div>
+                <div class="progress-bar" style="width: ${progress}%;"></div>
+                <div class="progress-text">${progress}%</div>
             </div>
-            <div class="status-text" id="statusText">Please wait...</div>
+            <div class="status-text">${statusText}games imported</div>
         </div>
     </div>
 	`;
 }
 
-/**
- * 更新进度对话框
- */
+// update progress
 async function updateProgressDialog(
 	dialog: any,
 	label: string,
@@ -239,93 +243,11 @@ async function updateProgressDialog(
 	imported: number,
 	total: number
 ) {
-	const html = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            padding: 24px;
-            margin: 0;
-            min-width: 380px;
-            background-color: var(--joplin-background-color, #ffffff);
-        }
-        .progress-wrapper {
-            max-width: 420px;
-            margin: 0 auto;
-        }
-        .progress-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--joplin-color, #333);
-            margin-bottom: 24px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--joplin-divider-color, #e0e0e0);
-        }
-        .progress-container {
-            margin-bottom: 16px;
-        }
-        .progress-label {
-            margin-bottom: 10px;
-            font-weight: 500;
-            font-size: 13px;
-            color: var(--joplin-color, #555);
-        }
-        .progress-bar-container {
-            width: 100%;
-            height: 24px;
-            background-color: var(--joplin-background-color-hover, #f5f5f5);
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-            border: 1px solid var(--joplin-divider-color, #e0e0e0);
-        }
-        .progress-bar {
-            height: 100%;
-            background-color: var(--joplin-color-focus, #5e9ed6);
-            transition: width 0.3s ease;
-            width: ${progress}%;
-        }
-        .progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-weight: 500;
-            font-size: 11px;
-            color: var(--joplin-color, #333);
-            z-index: 1;
-        }
-        .status-text {
-            margin-top: 8px;
-            font-size: 12px;
-            color: var(--joplin-color-faded, #666);
-        }
-    </style>
-</head>
-<body>
-    <div class="progress-wrapper">
-        <div class="progress-title">Importing Chess Games</div>
-        <div class="progress-container">
-            <div class="progress-label">${label}</div>
-            <div class="progress-bar-container">
-                <div class="progress-bar"></div>
-                <div class="progress-text">${progress}%</div>
-            </div>
-            <div class="status-text">${imported} / ${total} games imported</div>
-        </div>
-    </div>
-</body>
-</html>
-	`;
+    const html = getProgressDialogHtml(label, progress, `${imported} / ${total}`);
 	await joplin.views.dialogs.setHtml(dialog, html);
 }
 
-/**
- * 根据名称查找文件夹
- */
+
 async function findFolderByName(name: string): Promise<any> {
 	let page = 1;
 	let hasMore = true;
