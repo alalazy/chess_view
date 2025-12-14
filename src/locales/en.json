@@ -1,0 +1,15 @@
+{
+    "settingChessGameFolder": "Import Folder Name",
+    "importMenu": "Import Chess Games",
+    "DialogTitle": "Import Chess Games",
+    "importDialogSelectPlatform": "Platform",
+    "importDialogInputUsername": "Username",
+    "importDialogInputUsernamePlaceholder": "Enter username",
+    "progressDialogInitializingLable": "Initializing...",
+    "progressDialogInitializingStatusText": "Please wait...",
+    "progressDialogFetchingLable": "Fetching games...",
+    "progressDialogFetchingDoneLable": "Fetching games...",
+    "progressDialogImportingStatusText": "games imported"
+
+
+}

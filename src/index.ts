@@ -223,7 +223,7 @@ function getProgressDialogHtml(label: string, progress: number, statusText: stri
                 <div class="progress-bar" style="width: ${progress}%;"></div>
                 <div class="progress-text">${progress}%</div>
             </div>
-            <div class="status-text">${statusText} games imported</div>
+            <div class="status-text">${statusText}</div>
         </div>
     </div>
 	`;
@@ -237,7 +237,7 @@ async function updateProgressDialog(
 	imported: number,
 	total: number
 ) {
-    const html = getProgressDialogHtml(label, progress, `${imported} / ${total}`);
+    const html = getProgressDialogHtml(label, progress, `${imported} / ${total} games imported`);
 	await joplin.views.dialogs.setHtml(dialog, html);
 }
 
