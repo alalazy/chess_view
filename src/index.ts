@@ -3,16 +3,20 @@ import { ContentScriptType, ToolbarButtonLocation, MenuItemLocation } from 'api/
 import { ChangeEvent } from 'api/JoplinSettings';
 import { Settings } from './settings';
 import { ImportService } from './importService';
+import { i18n, t } from './i18n';
 
 
 joplin.plugins.register({
 	onStart: async function() {
+		// 初始化i18n
+		await i18n.init();
+
 		const settings = new Settings();
 
 		// 注册命令：插入PGN代码块
 		await joplin.commands.register({
 			name: 'insertPGN',
-			label: 'Insert PGN',
+			label: t('insertPGN', 'Insert PGN'),
 			iconName: 'fas fa-chess',
 			execute: async () => {
 				const selectedNote = await joplin.workspace.selectedNote()
@@ -48,7 +52,7 @@ joplin.plugins.register({
 		// 注册导入棋局命令 - 使用Dialog实现
 		await joplin.commands.register({
 			name: 'importChessGames',
-			label: 'Import Chess Games',
+			label: t('importMenu'),
 			iconName: 'fas fa-chess-board',
 			execute: async () => {
 				await showImportDialog(importDialog, progressDialog, settings);
@@ -94,7 +98,7 @@ async function showImportDialog(importDialog, progressDialog, settings: Settings
         
 		
 		if (!username) {
-			await joplin.views.dialogs.showMessageBox('Please input username');
+				await joplin.views.dialogs.showMessageBox(t('importDialogInputUsernamePlaceholder'));
 			return;
 		}
 
@@ -132,19 +136,19 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 
 	try {
 		// 更新进度：开始获取棋局
-		await updateProgressDialog(dialog, 'Fetching games...', 0, 0, 0);
+		await updateProgressDialog(dialog, t('progressDialogFetchingLable'), 0, 0, 0);
 
 		// 定义回调函数
 		const onGame = async (game: any) => {
 			games.push(game);
 			totalGames++;
 			// 更新进度：正在获取
-			await updateProgressDialog(dialog, `Fetching games... (${totalGames} found)`, 0, 0, totalGames);
+			await updateProgressDialog(dialog, `${t('progressDialogFetchingLable')} (${totalGames})`, 0, 0, totalGames);
 		};
 
 		const onComplete = async () => {
 			// 开始导入
-			await updateProgressDialog(dialog, 'Starting import...', 0, totalGames, totalGames);
+			await updateProgressDialog(dialog, t('progressDialogStartImportingLable'), 0, totalGames, totalGames);
 			
 			for (const game of games) {
 				try {
@@ -160,13 +164,13 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 
 					importedCount++;
 					const progress = Math.round((importedCount / totalGames) * 100);
-					await updateProgressDialog(dialog, `Importing games...`, progress, importedCount, totalGames);
+					await updateProgressDialog(dialog, t('progressDialogImportingLable'), progress, importedCount, totalGames);
 				} catch (error) {
 					console.error('Error importing game:', error);
 				}
 			}
 
-			await updateProgressDialog(dialog, `Import completed!`, 100, importedCount, totalGames);
+			await updateProgressDialog(dialog, t('progressDialogImportingDoneLable'), 100, importedCount, totalGames);
 			await new Promise(resolve => setTimeout(resolve, 1000)); // 显示完成状态1秒
 			
 			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
@@ -193,10 +197,10 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 function getInputDialogHtml(): string {
 	return `
     <div class="form-container">
-        <div class="form-title">Import Chess Games</div>
+        <div class="form-title">${t('DialogTitle')}</div>
         <form name="importForm">
             <div class="form-group">
-                <label for="platform">Platform</label>
+                <label for="platform">${t('importDialogSelectPlatform')}</label>
                 <select id="platform" name="platform">
                     <option value="lichess">Lichess</option>
                     <option value="chesscom">Chess.com</option>
@@ -204,8 +208,8 @@ function getInputDialogHtml(): string {
             </div>
 
             <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter username" required>
+                <label for="username">${t('importDialogInputUsername')}</label>
+                <input type="text" id="username" name="username" placeholder="${t('importDialogInputUsernamePlaceholder')}" required>
             </div>
         </form>
     </div>
@@ -216,7 +220,7 @@ function getInputDialogHtml(): string {
 function getProgressDialogHtml(label: string, progress: number, statusText: string): string {
 	return `
     <div class="progress-wrapper">
-        <div class="progress-title">Importing Chess Games</div>
+        <div class="progress-title">${t('DialogTitle')}</div>
         <div class="progress-container">
             <div class="progress-label">${label}</div>
             <div class="progress-bar-container">
@@ -237,7 +241,7 @@ async function updateProgressDialog(
 	imported: number,
 	total: number
 ) {
-    const html = getProgressDialogHtml(label, progress, `${imported} / ${total} games imported`);
+    const html = getProgressDialogHtml(label, progress, `${imported} / ${total} ${t('progressDialogImportingStatusText')}`);
 	await joplin.views.dialogs.setHtml(dialog, html);
 }
 

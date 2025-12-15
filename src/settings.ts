@@ -1,6 +1,7 @@
 import joplin from 'api'
 import { ChangeEvent } from 'api/JoplinSettings'
 import { SettingItem, SettingItemType } from 'api/types'
+import { t } from './i18n'
 
 interface SettingsConfig {
     [key: string]: SettingItem,
@@ -12,16 +13,17 @@ export class Settings {
 
     private _config: SettingsConfig = {
         importFolderName: {
-            value: 'Chess Games',
+            value: t('defaultSettingChessGameFolder'),
             type: SettingItemType.String,
             section: Settings.CHESS_VIEWER_SETTINGS_SECTION,
             public: true,
-            label: 'Import Folder Name',
-            description: 'The name of the folder where imported games will be stored.',
+            label: t('settingChessGameFolder'),
+            description: t('settingChessGameFolder'),
         }
     }
 
     async register() {
+        
         await joplin.settings.registerSection(Settings.CHESS_VIEWER_SETTINGS_SECTION, {
             label: 'Chess Viewer',
             iconName: 'fas fa-chess-knight',

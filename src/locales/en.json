@@ -1,5 +1,7 @@
 {
+    "insertPGN": "Insert PGN",
     "settingChessGameFolder": "Import Folder Name",
+    "defaultSettingChessGameFolder": "Chess Games",
     "importMenu": "Import Chess Games",
     "DialogTitle": "Import Chess Games",
     "importDialogSelectPlatform": "Platform",
@@ -8,8 +10,9 @@
     "progressDialogInitializingLable": "Initializing...",
     "progressDialogInitializingStatusText": "Please wait...",
     "progressDialogFetchingLable": "Fetching games...",
-    "progressDialogFetchingDoneLable": "Fetching games...",
-    "progressDialogImportingStatusText": "games imported"
-
-
+    "progressDialogFetchingDoneLable": "Fetching games finished",
+    "progressDialogImportingStatusText": "games imported",
+    "progressDialogStartImportingLable": "Starting import...",
+    "progressDialogImportingLable": "Importing games...",
+    "progressDialogImportingDoneLable": "Import completed!"
 }

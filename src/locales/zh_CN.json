@@ -1,0 +1,18 @@
+{
+    "insertPGN": "插入PGN",
+    "settingChessGameFolder": "棋局目录",
+    "defaultSettingChessGameFolder": "我的棋局",
+    "importMenu": "导入棋局",
+    "DialogTitle": "导入棋局",
+    "importDialogSelectPlatform": "平台",
+    "importDialogInputUsername": "用户名",
+    "importDialogInputUsernamePlaceholder": "请输入用户名",
+    "progressDialogInitializingLable": "初始化中...",
+    "progressDialogInitializingStatusText": "请等待...",
+    "progressDialogFetchingLable": "获取棋局中...",
+    "progressDialogFetchingDoneLable": "获取棋局完成",
+    "progressDialogImportingStatusText": "棋局已导入",
+    "progressDialogStartImportingLable": "开始导入...",
+    "progressDialogImportingLable": "导入中...",
+    "progressDialogImportingDoneLable": "导入完成！"
+}
