@@ -8,12 +8,12 @@ import { i18n, t } from './i18n';
 
 joplin.plugins.register({
 	onStart: async function() {
-		// 初始化i18n
+		// init i18n
 		await i18n.init();
 
 		const settings = new Settings();
 
-		// 注册命令：插入PGN代码块
+		// register insertPGN
 		await joplin.commands.register({
 			name: 'insertPGN',
 			label: t('insertPGN', 'Insert PGN'),
@@ -25,7 +25,7 @@ joplin.plugins.register({
 					return
 				}
 
-				// 插入PGN代码块模板
+				// insert PGN demo code block
 				const pgnTemplate = `\n\`\`\`pgn
 [Event "Example"]
 [Site "?"]
@@ -43,13 +43,13 @@ joplin.plugins.register({
 			enabledCondition: 'markdownEditorPaneVisible'
 		});
 
-		// 添加工具栏按钮
+		// add toolbar button
 		await joplin.views.toolbarButtons.create('insertPGNButton', 'insertPGN', ToolbarButtonLocation.EditorToolbar);
 
         const importDialog = await createImportDialog();
         const progressDialog = await createProgressDialog();
 
-		// 注册导入棋局命令 - 使用Dialog实现
+		// regster importChessGames
 		await joplin.commands.register({
 			name: 'importChessGames',
 			label: t('importMenu'),
@@ -59,17 +59,16 @@ joplin.plugins.register({
 			}
 		});
 
-		// 添加到文件→导入菜单
+		// add import menu
 		await joplin.views.menuItems.create('importChessGamesMenu', 'importChessGames', MenuItemLocation.File);
 
-		// 注册内容脚本用于渲染PGN
 		await joplin.contentScripts.register(
 			ContentScriptType.MarkdownItPlugin,
 			'chessViewer',
 			'./contentScript.js'
 		);
 
-		// 注册配置项
+		// register settings
 		await settings.register();
 		joplin.settings.onChange(async (event: ChangeEvent) => {
             await settings.read(event)
@@ -83,8 +82,8 @@ async function createImportDialog() {
 	await joplin.views.dialogs.setHtml(importDialog, getInputDialogHtml());
     await joplin.views.dialogs.addScript(importDialog, './importDialog.css');
 	await joplin.views.dialogs.setButtons(importDialog, [
-        { id: 'import', title: 'Import' },
-		{ id: 'cancel', title: 'Cancel' }
+        { id: 'import', title: t('importDialogImportBtn') },
+		{ id: 'cancel', title: t('importDialogCancelBtn') }
 	]);
     return importDialog;
 }
@@ -109,7 +108,7 @@ async function showImportDialog(importDialog, progressDialog, settings: Settings
 
 async function createProgressDialog() {
     const progressDialog = await joplin.views.dialogs.create('progressDialog');
-	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml('Initializing...', 0, 'Please wait...'));
+	await joplin.views.dialogs.setHtml(progressDialog, getProgressDialogHtml(t('progressDialogInitializingLable'), 0, t('progressDialogInitializingStatusText')));
     await joplin.views.dialogs.addScript(progressDialog, './importProgress.css');
 	await joplin.views.dialogs.setButtons(progressDialog, []);
     return progressDialog
@@ -135,19 +134,15 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 	const games: any[] = [];
 
 	try {
-		// 更新进度：开始获取棋局
 		await updateProgressDialog(dialog, t('progressDialogFetchingLable'), 0, 0, 0);
 
-		// 定义回调函数
 		const onGame = async (game: any) => {
 			games.push(game);
 			totalGames++;
-			// 更新进度：正在获取
 			await updateProgressDialog(dialog, `${t('progressDialogFetchingLable')} (${totalGames})`, 0, 0, totalGames);
 		};
 
 		const onComplete = async () => {
-			// 开始导入
 			await updateProgressDialog(dialog, t('progressDialogStartImportingLable'), 0, totalGames, totalGames);
 			
 			for (const game of games) {
@@ -173,12 +168,12 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 			await updateProgressDialog(dialog, t('progressDialogImportingDoneLable'), 100, importedCount, totalGames);
 			await new Promise(resolve => setTimeout(resolve, 1000)); // 显示完成状态1秒
 			
-			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
+			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: t('progressDialogImportDoneBtn') }]);
 		};
 
 		const onError = async (error: Error) => {
 			await updateProgressDialog(dialog, `Error: ${error.message}`, 0, importedCount, totalGames);
-			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
+			await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: t('progressDialogImportDoneBtn') }]);
 		};
 
 		if (platform === 'lichess') {
@@ -189,7 +184,7 @@ async function showProgressDialogAndImport(dialog, platform: string, username: s
 
 	} catch (error) {
 		await updateProgressDialog(dialog, `Error: ${error.message}`, 0, importedCount, totalGames);
-		await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: 'OK' }]);
+		await joplin.views.dialogs.setButtons(dialog, [{ id: 'ok', title: t('progressDialogImportDoneBtn') }]);
 	}
 }
 

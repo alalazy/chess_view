@@ -1,10 +1,9 @@
 import joplin from 'api';
 
-// 导入语言文件
 import en from './locales/en.json';
 import zh_CN from './locales/zh_CN.json';
 
-// 语言映射表
+// language map
 const locales: { [key: string]: any } = {
     'en': en,
     'en_US': en,
@@ -13,19 +12,14 @@ const locales: { [key: string]: any } = {
     'zh_TW': zh_CN,
 };
 
-// 默认语言
 const DEFAULT_LOCALE = 'en';
 
 class I18n {
     private currentLocale: string = DEFAULT_LOCALE;
     private translations: any = en;
 
-    /**
-     * 初始化i18n，从Joplin设置中获取语言
-     */
     async init(): Promise<void> {
         try {
-            // 获取Joplin的语言设置
             const localeSettings = await joplin.settings.globalValue('locale');
             this.setLocale(localeSettings);
         } catch (error) {
@@ -34,10 +28,6 @@ class I18n {
         }
     }
 
-    /**
-     * 设置当前语言
-     * @param locale 语言代码，如 'en', 'zh_CN'
-     */
     setLocale(locale: string): void {
         if (locales[locale]) {
             this.currentLocale = locale;
@@ -58,12 +48,6 @@ class I18n {
         }
     }
 
-    /**
-     * 获取翻译文本
-     * @param key 翻译键
-     * @param defaultValue 默认值（可选）
-     * @returns 翻译后的文本
-     */
     t(key: string, defaultValue?: string): string {
         const value = this.translations[key];
         if (value !== undefined) {
@@ -79,18 +63,13 @@ class I18n {
         return key;
     }
 
-    /**
-     * 获取当前语言代码
-     */
     getCurrentLocale(): string {
         return this.currentLocale;
     }
 }
 
-// 导出单例实例
 export const i18n = new I18n();
 
-// 导出便捷的翻译函数
 export const t = (key: string, defaultValue?: string): string => {
     return i18n.t(key, defaultValue);
 };

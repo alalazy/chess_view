@@ -7,6 +7,8 @@
     "importDialogSelectPlatform": "平台",
     "importDialogInputUsername": "用户名",
     "importDialogInputUsernamePlaceholder": "请输入用户名",
+    "importDialogImportBtn": "导入",
+    "importDialogCancelBtn": "取消",
     "progressDialogInitializingLable": "初始化中...",
     "progressDialogInitializingStatusText": "请等待...",
     "progressDialogFetchingLable": "获取棋局中...",
@@ -14,5 +16,6 @@
     "progressDialogImportingStatusText": "棋局已导入",
     "progressDialogStartImportingLable": "开始导入...",
     "progressDialogImportingLable": "导入中...",
-    "progressDialogImportingDoneLable": "导入完成！"
+    "progressDialogImportingDoneLable": "导入完成！",
+    "progressDialogImportDoneBtn": "完成"
 }

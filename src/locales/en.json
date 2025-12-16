@@ -7,6 +7,8 @@
     "importDialogSelectPlatform": "Platform",
     "importDialogInputUsername": "Username",
     "importDialogInputUsernamePlaceholder": "Enter username",
+    "importDialogImportBtn": "Import",
+    "importDialogCancelBtn": "Cancel",
     "progressDialogInitializingLable": "Initializing...",
     "progressDialogInitializingStatusText": "Please wait...",
     "progressDialogFetchingLable": "Fetching games...",
@@ -14,5 +16,6 @@
     "progressDialogImportingStatusText": "games imported",
     "progressDialogStartImportingLable": "Starting import...",
     "progressDialogImportingLable": "Importing games...",
-    "progressDialogImportingDoneLable": "Import completed!"
+    "progressDialogImportingDoneLable": "Import completed!",
+    "progressDialogImportDoneBtn": "Ok"
 }
