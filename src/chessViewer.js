@@ -3,6 +3,7 @@ window.chessBoards = window.chessBoards || {};
 window.chessGames = window.chessGames || {};
 window.chessMoves = window.chessMoves || {};
 window.chessCurrentMove = window.chessCurrentMove || {};
+window.chessStartFen = window.chessStartFen || {};
 
 // 棋子图片base64编码映射
 window.chessPieceImages = {
@@ -51,19 +52,26 @@ function initializeChessBoards() {
 			// 获取所有移动
 			const history = chess.history({ verbose: true });
 			
-			// 重置到初始位置
-			chess.reset();
+			// 重新加载PGN以获取正确的起始位置
 			chess.loadPgn(pgnContent);
-			chess.reset();
 			
+			// 回退所有移动以获取起始位置
+			for (let i = 0; i < history.length; i++) {
+				chess.undo();
+			}
+
+			// 保存起始FEN（可能是自定义的）
+			const startFen = chess.fen();
+
 			// 存储游戏状态
 			window.chessGames[boardId] = chess;
 			window.chessMoves[boardId] = history;
 			window.chessCurrentMove[boardId] = -1;
+			window.chessStartFen[boardId] = startFen;
 			
 			// 创建棋盘（使用全局变量）
 			const board = Chessboard(boardId, {
-				position: 'start',
+				position: startFen,
 				draggable: false,
 				showNotation: true,
 				pieceTheme: function(piece) {
@@ -92,16 +100,31 @@ function generateMovesList(boardId) {
 	if (!movesListDiv) return;
 	
 	const moves = window.chessMoves[boardId];
+
 	if (!moves || moves.length === 0) {
-		movesListDiv.innerHTML = '<div style="color: #999; padding: 10px; text-align: center;">No moves yet</div>';
 		return;
 	}
-	
+
 	let html = '';
+	let startIndex = 0;
+
+	if (moves[0].color == window.ChessJS.BLACK) {
+		const moveNum = 1;
+		html += '<div style="display: flex; align-items: center; padding: 4px 6px; border-radius: 3px; margin-bottom: 1px;">';
+		html += '<div style="width: 32px; font-size: 12px; font-weight: 600; color: #888; flex-shrink: 0;">' + moveNum + '</div>';
+		// 白方位置显示"..."
+		html += '<div style="flex: 1; padding: 6px 8px; margin-right: 4px; text-align: center; color: #888;">...</div>';
+		// 黑方移动
+		html += '<div class="move-item" data-move-index="0" style="flex: 1; padding: 6px 8px; cursor: pointer; border-radius: 3px; text-align: center;" onclick="chessViewerGoToMove(\'' + boardId + '\', 0)">' + moves[0].san + '</div>';
+		html += '</div>';
+		startIndex = 1;
+	}
+	
+	
 	
 	// 按回合组织移动
-	for (let i = 0; i < moves.length; i += 2) {
-		const moveNum = Math.floor(i / 2) + 1;
+	for (let i = startIndex; i < moves.length; i += 2) {
+		const moveNum = Math.floor(i / 2) + (startIndex === 0 ? 1 : 2);
 		const whiteMove = moves[i];
 		const blackMove = moves[i + 1];
 		
@@ -159,11 +182,16 @@ window.chessViewerGoToMove = function(boardId, moveIndex) {
 	const board = window.chessBoards[boardId];
 	const chess = window.chessGames[boardId];
 	const moves = window.chessMoves[boardId];
+	const startFen = window.chessStartFen[boardId];
 	
 	if (!board || !chess || !moves) return;
 	
-	// 重置到初始位置
-	chess.reset();
+	// 加载初始FEN（如果PGN包含自定义FEN，则使用它）
+	if (startFen) {
+		chess.load(startFen);
+	} else {
+		chess.reset();
+	}
 	
 	// 应用到指定步骤
 	for (let i = 0; i <= moveIndex; i++) {
@@ -184,10 +212,17 @@ window.chessViewerGoToMove = function(boardId, moveIndex) {
 window.chessViewerStart = function(boardId) {
 	const board = window.chessBoards[boardId];
 	const chess = window.chessGames[boardId];
+	const startFen = window.chessStartFen[boardId];
 	
 	if (!board || !chess) return;
 	
-	chess.reset();
+	// 加载初始FEN（如果PGN包含自定义FEN，则使用它）
+	if (startFen) {
+		chess.load(startFen);
+	} else {
+		chess.reset();
+	}
+	
 	board.position(chess.fen());
 	window.chessCurrentMove[boardId] = -1;
 	highlightCurrentMove(boardId);
@@ -228,11 +263,16 @@ window.chessViewerEnd = function(boardId) {
 	const board = window.chessBoards[boardId];
 	const chess = window.chessGames[boardId];
 	const moves = window.chessMoves[boardId];
+	const startFen = window.chessStartFen[boardId];
 	
 	if (!board || !chess || !moves) return;
 	
-	// 重置并应用所有移动
-	chess.reset();
+	// 加载初始FEN并应用所有移动
+	if (startFen) {
+		chess.load(startFen);
+	} else {
+		chess.reset();
+	}
 	moves.forEach(move => {
 		chess.move(move.san);
 	});
