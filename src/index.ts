@@ -60,7 +60,7 @@ joplin.plugins.register({
 		});
 
 		// add import menu
-		await joplin.views.menuItems.create('importChessGamesMenu', 'importChessGames', MenuItemLocation.File);
+		await joplin.views.menuItems.create('importChessGamesMenu', 'importChessGames', MenuItemLocation.Tools);
 
 		await joplin.contentScripts.register(
 			ContentScriptType.MarkdownItPlugin,
