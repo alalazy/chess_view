@@ -80,7 +80,6 @@
 }
 
 .chess-moves-list {
-	flex: 1;
 	border: 1px solid #d0d0d0;
 	padding: 8px;
 	border-radius: 4px;

@@ -4,6 +4,7 @@ import { ChangeEvent } from 'api/JoplinSettings';
 import { Settings } from './settings';
 import { ImportService } from './importService';
 import { i18n, t } from './i18n';
+import { parse, split } from '@mliebelt/pgn-parser'
 
 
 joplin.plugins.register({
@@ -15,8 +16,8 @@ joplin.plugins.register({
 
 		// register insertPGN
 		await joplin.commands.register({
-			name: 'insertPGN',
-			label: t('insertPGN', 'Insert PGN'),
+			name: 'importPGNFile',
+			label: t('importPGNFile'),
 			iconName: 'fas fa-chess',
 			execute: async () => {
 				const selectedNote = await joplin.workspace.selectedNote()
@@ -25,26 +26,37 @@ joplin.plugins.register({
 					return
 				}
 
-				// insert PGN demo code block
-				const pgnTemplate = `\n\`\`\`pgn
-[Event "Example"]
-[Site "?"]
-[Date "2025.05.05"]
-[Round "?"]
-[White "Player A"]
-[Black "Player B"]
-[Result "*"]
+				const { canceled, filePaths } = await joplin.views.dialogs.showOpenDialog({
+					"title": t('importDialogSelectPgnFileTitle'),
+					"filters": [
+						{ name: 'PGN', extensions: ['pgn'] }
+					],
+					"properties": ['openFile', 'multiSelections']
+				});
 
-1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *
-\`\`\`\n`;
-
-				await joplin.commands.execute('insertText', pgnTemplate);
+				if (canceled || !filePaths || filePaths.length === 0) {
+					return
+				}
+				const fs = require('fs').promises;
+				
+				try {
+					for (const filePath of filePaths) {
+						const fileContent = await fs.readFile(filePath, 'utf-8');
+						const games = split(fileContent, {startRule: "games"});
+						for (const game of games) {
+							const pgnBlock = `\`\`\`pgn\n${game.all.trim()}\n\`\`\`\n\n`;
+							await joplin.commands.execute('insertText', pgnBlock);
+						}
+					}
+				} catch (error) {
+					await joplin.views.dialogs.showMessageBox(`Error reading PGN file: ${error.message}`);
+				}
 			},
 			enabledCondition: 'markdownEditorPaneVisible'
 		});
 
 		// add toolbar button
-		await joplin.views.toolbarButtons.create('insertPGNButton', 'insertPGN', ToolbarButtonLocation.EditorToolbar);
+		await joplin.views.toolbarButtons.create('importPGNButton', 'importPGNFile', ToolbarButtonLocation.EditorToolbar);
 
         const importDialog = await createImportDialog();
         const progressDialog = await createProgressDialog();

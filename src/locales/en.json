@@ -1,5 +1,6 @@
 {
-    "insertPGN": "Insert PGN",
+    "importPGNFile": "Import PGN File",
+    "importDialogSelectPgnFileTitle": "Select PGN File",
     "settingChessGameFolder": "Import Folder Name",
     "defaultSettingChessGameFolder": "Chess Games",
     "importMenu": "Import Chess Games",
