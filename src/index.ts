@@ -26,15 +26,16 @@ joplin.plugins.register({
 					return
 				}
 
-				const { canceled, filePaths } = await joplin.views.dialogs.showOpenDialog({
-					"title": t('importDialogSelectPgnFileTitle'),
-					"filters": [
+				const filePaths = await joplin.views.dialogs.showOpenDialog({
+					'title': t('importDialogSelectPgnFileTitle'),
+					'filters': [
 						{ name: 'PGN', extensions: ['pgn'] }
 					],
-					"properties": ['openFile', 'multiSelections']
+					'properties': ['openFile', 'multiSelections']
 				});
 
-				if (canceled || !filePaths || filePaths.length === 0) {
+
+				if (!filePaths || filePaths.length === 0) {
 					return
 				}
 				const fs = require('fs').promises;
@@ -42,7 +43,7 @@ joplin.plugins.register({
 				try {
 					for (const filePath of filePaths) {
 						const fileContent = await fs.readFile(filePath, 'utf-8');
-						const games = split(fileContent, {startRule: "games"});
+						const games = split(fileContent, {startRule: 'games'});
 						for (const game of games) {
 							const pgnBlock = `\`\`\`pgn\n${game.all.trim()}\n\`\`\`\n\n`;
 							await joplin.commands.execute('insertText', pgnBlock);
