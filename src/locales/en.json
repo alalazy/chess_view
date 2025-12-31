@@ -1,6 +1,7 @@
 {
     "importPGNFile": "Import PGN File",
     "importDialogSelectPgnFileTitle": "Select PGN File",
+    "raedPGNFileErrorMessage": "Error reading PGN file",
     "settingChessGameFolder": "Import Folder Name",
     "defaultSettingChessGameFolder": "Chess Games",
     "importMenu": "Import Chess Games",

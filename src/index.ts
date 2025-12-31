@@ -50,7 +50,7 @@ joplin.plugins.register({
 						}
 					}
 				} catch (error) {
-					await joplin.views.dialogs.showMessageBox(`Error reading PGN file: ${error.message}`);
+					await joplin.views.dialogs.showMessageBox(`${t('raedPGNFileErrorMessage')}: ${error.message}`);
 				}
 			},
 			enabledCondition: 'markdownEditorPaneVisible'

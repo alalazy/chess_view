@@ -1,6 +1,7 @@
 {
     "importPGNFile": "插入PGN文件",
     "importDialogSelectPgnFileTitle": "请选择PGN文件",
+    "raedPGNFileErrorMessage": "读取PGN文件失败",
     "settingChessGameFolder": "棋局目录",
     "defaultSettingChessGameFolder": "我的棋局",
     "importMenu": "导入棋局",
