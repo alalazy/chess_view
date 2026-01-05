@@ -172,8 +172,15 @@ function highlightCurrentMove(boardId) {
 		currentItem.style.color = '#ffffff';
 		currentItem.style.fontWeight = '600';
 		
-		// 滚动到可见区域
-		currentItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+		const container = movesListDiv;
+		const itemRect = currentItem.getBoundingClientRect();
+		const containerRect = container.getBoundingClientRect();
+		
+		if (itemRect.top < containerRect.top) {
+			container.scrollTop -= (containerRect.top - itemRect.top) + 10;
+		} else if (itemRect.bottom > containerRect.bottom) {
+			container.scrollTop += (itemRect.bottom - containerRect.bottom) + 10;
+		}
 	}
 }
 
