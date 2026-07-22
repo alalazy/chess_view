@@ -32,6 +32,12 @@ window.getChessPieceImage = function(pieceName) {
 
 // 初始化所有棋盘
 function initializeChessBoards() {
+	// 关键依赖检查：如果 chess.js 或 chessboard.js 还没加载完，延迟重试
+	if (typeof window.ChessJS === 'undefined' || typeof Chessboard === 'undefined') {
+		setTimeout(initializeChessBoards, 100);
+		return;
+	}
+
 	const pgnScripts = document.querySelectorAll('script[type="application/pgn"]');
 	
 	pgnScripts.forEach(script => {
@@ -80,6 +86,12 @@ function initializeChessBoards() {
 			});
 
 			window.chessBoards[boardId] = board;
+			
+			// 初始化成功，显示棋盘区域，隐藏fallback原始文本
+			const viewerDiv = document.getElementById(boardId + '-viewer');
+			const fallbackDiv = document.getElementById(boardId + '-fallback');
+			if (viewerDiv) viewerDiv.style.display = '';
+			if (fallbackDiv) fallbackDiv.style.display = 'none';
 			
 			// 生成步骤列表
 			generateMovesList(boardId);
@@ -297,31 +309,66 @@ window.chessViewerFlip = function(boardId) {
 	}
 };
 
-// 页面加载完成后初始化
-if (document.readyState === 'loading') {
-	document.addEventListener('DOMContentLoaded', initializeChessBoards);
-} else {
-	initializeChessBoards();
+// 防抖函数：合并短时间内的多次触发为一次执行
+function debounce(fn, delay) {
+	var timer = null;
+	return function() {
+		if (timer) clearTimeout(timer);
+		timer = setTimeout(fn, delay);
+	};
 }
 
-// 监听DOM变化，处理动态加载的内容
-const observer = new MutationObserver(function(mutations) {
-	let shouldInit = false;
-	mutations.forEach(function(mutation) {
-		if (mutation.addedNodes.length > 0) {
-			mutation.addedNodes.forEach(function(node) {
-				if (node.nodeType === 1 && (node.classList.contains('chess-viewer-container') || node.querySelector('.chess-viewer-container'))) {
-					shouldInit = true;
-				}
-			});
+var debouncedInit = debounce(initializeChessBoards, 50);
+
+// 启动 MutationObserver，监听 DOM 变化以处理动态加载的内容
+// 如果 document.body 尚不存在，则轮询等待直到可用
+function startObserver() {
+	if (!document.body) {
+		setTimeout(startObserver, 50);
+		return;
+	}
+
+	var observer = new MutationObserver(function(mutations) {
+		var shouldInit = false;
+		mutations.forEach(function(mutation) {
+			if (mutation.addedNodes.length > 0) {
+				mutation.addedNodes.forEach(function(node) {
+					if (node.nodeType === 1 &&
+						(node.classList.contains('chess-viewer-container') ||
+						 node.querySelector('.chess-viewer-container'))) {
+						shouldInit = true;
+					}
+				});
+			}
+		});
+		if (shouldInit) {
+			debouncedInit();
 		}
 	});
-	if (shouldInit) {
-		setTimeout(initializeChessBoards, 100);
-	}
-});
 
-observer.observe(document.body, {
-	childList: true,
-	subtree: true
-});
+	observer.observe(document.body, {
+		childList: true,
+		subtree: true
+	});
+
+	// Observer 就绪后立即检测一次（覆盖脚本加载时 DOM 已就绪的场景）
+	debouncedInit();
+}
+
+startObserver();
+
+// 兜底机制：定期检查是否有未初始化的棋盘
+// 覆盖 MutationObserver 未能捕获到 DOM 变化的极端情况（如 Joplin 切换笔记时 webview 重建）
+var fallbackTimer = setInterval(function() {
+	var pgnScripts = document.querySelectorAll('script[type="application/pgn"]');
+	var hasUninitialized = false;
+	pgnScripts.forEach(function(script) {
+		var boardId = script.id.replace('-pgn', '');
+		if (!window.chessBoards[boardId]) {
+			hasUninitialized = true;
+		}
+	});
+	if (hasUninitialized) {
+		initializeChessBoards();
+	}
+}, 500);

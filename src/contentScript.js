@@ -11,27 +11,37 @@ module.exports = {
 					const info = token.info ? token.info.trim() : '';
 					const lang = info.split(/\s+/g)[0];
 
-					// only handle pgn code blocks
+				// only handle pgn code blocks
 					if (lang === 'pgn') {
 						const pgnContent = token.content;
 						const uniqueId = 'chess-board-' + Math.random().toString(36).substr(2, 9);
 						
+						// 转义HTML特殊字符，防止XSS
+						const escapedContent = pgnContent
+							.replace(/&/g, '&amp;')
+							.replace(/</g, '&lt;')
+							.replace(/>/g, '&gt;')
+							.replace(/"/g, '&quot;');
+
 					return `
 						<div class="chess-viewer-container">
-							<div class="chess-board-section">
-								<div id="${uniqueId}" class="chess-board"></div>
-								<div class="chess-controls">
-									<button class="chess-btn" onclick="chessViewerStart('${uniqueId}')">⏮</button>
-									<button class="chess-btn" onclick="chessViewerPrev('${uniqueId}')">◀</button>
-									<button class="chess-btn" onclick="chessViewerNext('${uniqueId}')">▶</button>
-									<button class="chess-btn" onclick="chessViewerEnd('${uniqueId}')">⏭</button>
-									<button class="chess-btn" onclick="chessViewerFlip('${uniqueId}')">⇅</button>
+							<div class="chess-viewer-board" id="${uniqueId}-viewer" style="display:none;">
+								<div class="chess-board-section">
+									<div id="${uniqueId}" class="chess-board"></div>
+									<div class="chess-controls">
+										<button class="chess-btn" onclick="chessViewerStart('${uniqueId}')">⏮</button>
+										<button class="chess-btn" onclick="chessViewerPrev('${uniqueId}')">◀</button>
+										<button class="chess-btn" onclick="chessViewerNext('${uniqueId}')">▶</button>
+										<button class="chess-btn" onclick="chessViewerEnd('${uniqueId}')">⏭</button>
+										<button class="chess-btn" onclick="chessViewerFlip('${uniqueId}')">⇅</button>
+									</div>
+								</div>
+								<div class="chess-moves-section">
+									<div>Moves</div>
+									<div id="${uniqueId}-moves-list" class="chess-moves-list"></div>
 								</div>
 							</div>
-							<div class="chess-moves-section">
-								<div>Moves</div>
-								<div id="${uniqueId}-moves-list" class="chess-moves-list"></div>
-							</div>
+							<pre class="chess-viewer-fallback" id="${uniqueId}-fallback"><code class="language-pgn">${escapedContent}</code></pre>
 							<script type="application/pgn" id="${uniqueId}-pgn">${pgnContent}</script>
 						</div>
 					`;
